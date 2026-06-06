@@ -1,5 +1,5 @@
 {
-  "name": "Météo Expert - 15 Jours & 72H",
+  "name": "Météo ARL - 15 Jours & 72H",
   "short_name": "Météo ARL",
   "description": "Prévisions météo complètes : 72h horaires, 15 jours, cartes vents et précipitations",
   "start_url": "./index.html",
