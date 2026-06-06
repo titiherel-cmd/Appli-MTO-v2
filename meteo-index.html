@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Météo Expert - 15 Jours & 72H</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Météo Expert">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1163/1163661.png">
+
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --bg: #f0f4f8;
+            --card: #ffffff;
+            --text: #2d3748;
+            --text-muted: #718096;
+            --border: #e2e8f0;
+            --hot: #e74c3c;
+            --cold: #3498db;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        /* ===== HEADER ===== */
+        header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3d5a80 100%);
+            color: white;
+            padding: 20px 15px 20px;
+            padding-top: max(20px, env(safe-area-inset-top, 20px));
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        #current-city {
+            margin: 0 0 5px 0;
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        #current-temp-summary {
+            font-size: 0.95rem;
+            opacity: 0.8;
+            margin-bottom: 12px;
+            min-height: 20px;
+        }
+
+        .search-container {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            padding: 10px 14px;
+            width: 220px;
+            border: none;
+            border-radius: 25px;
+            font-size: 0.95rem;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            outline: none;
+            backdrop-filter: blur(10px);
+        }
+        input[type="text"]::placeholder { color: rgba(255,255,255,0.6); }
+        input[type="text"]:focus { background: rgba(255,255,255,0.25); }
+
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 25px;
+            background: var(--secondary);
+            color: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background 0.2s, transform 0.1s;
+            touch-action: manipulation;
+            white-space: nowrap;
+        }
+        .btn:active { background: #2475a8; transform: scale(0.97); }
+        .btn-location {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+        }
+        .btn-location:active { background: rgba(255,255,255,0.35); }
+
+        /* ===== LAYOUT ===== */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 25px 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(to right, var(--secondary), transparent);
+            border-radius: 2px;
+        }
+
+        /* ===== LOADING ===== */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+        }
+        .loading-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--border);
+            border-top-color: var(--secondary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== CARTE MÉTÉO ===== */
+        .map-container {
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            margin-bottom: 10px;
+            background: #dbe9f5;
+        }
+        .map-container iframe {
+            display: block;
+            width: 100%;
+            height: 340px;
+            border: none;
+        }
+
+        /* ===== PRÉVISIONS 72H ===== */
+        .hourly-scroll {
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            padding: 5px 2px 10px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .hourly-scroll::-webkit-scrollbar { display: none; }
+
+        .hourly-card {
+            min-width: 72px;
+            background: var(--card);
+            padding: 12px 8px;
+            border-radius: 14px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            flex-shrink: 0;
+            transition: transform 0.15s;
+            border: 1px solid var(--border);
+        }
+        .hourly-card:active { transform: scale(0.95); }
+        .hourly-card .day-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .hourly-card .hour-label { font-size: 0.85rem; font-weight: 700; margin: 2px 0; }
+        .hourly-card .weather-emoji { font-size: 1.4rem; margin: 6px 0; }
+        .hourly-card .temp-label { font-size: 0.9rem; font-weight: 700; color: var(--secondary); }
+
+        /* Highlight heure actuelle */
+        .hourly-card.current-hour {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border-color: transparent;
+        }
+        .hourly-card.current-hour .day-label,
+        .hourly-card.current-hour .temp-label { color: rgba(255,255,255,0.85); }
+
+        /* ===== PRÉVISIONS 15 JOURS ===== */
+        .daily-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+        }
+
+        .daily-card {
+            background: var(--card);
+            padding: 14px 10px;
+            border-radius: 14px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.15s;
+        }
+        .daily-card:active { transform: scale(0.97); }
+        .daily-card .day-name { font-weight: 700; font-size: 0.85rem; margin-bottom: 2px; text-transform: capitalize; }
+        .daily-card .date-label { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 8px; }
+        .daily-card .weather-emoji { font-size: 2rem; margin: 6px 0; }
+        .daily-card .temps { font-size: 0.9rem; margin-top: 8px; }
+        .daily-card .temp-max { color: var(--hot); font-weight: 700; }
+        .daily-card .temp-min { color: var(--cold); }
+
+        /* Aujourd'hui en highlight */
+        .daily-card.today {
+            background: linear-gradient(135deg, #f6d365, #fda085);
+            border-color: transparent;
+        }
+        .daily-card.today .day-name,
+        .daily-card.today .date-label { color: #7b341e; }
+
+        /* ===== BANNIÈRE INSTALLATION ===== */
+        #installBanner {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #2c3e50, #3d5a80);
+            color: white;
+            padding: 14px 20px;
+            padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+            z-index: 999;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 14px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+        }
+        #installBanner span { flex: 1; }
+        #installBtn {
+            background: #ffd700;
+            color: #111;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 13px;
+        }
+        #closeBanner {
+            background: none;
+            color: rgba(255,255,255,0.6);
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        /* ===== ERREUR ===== */
+        .error-msg {
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            color: #c53030;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            display: none;
+            margin-top: 10px;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 480px) {
+            .map-container iframe { height: 280px; }
+            #current-city { font-size: 1.3rem; }
+            input[type="text"] { width: 180px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Bannière installation PWA -->
+<div id="installBanner">
+    <span>📲 Installer l'app sur l'écran d'accueil</span>
+    <button id="installBtn">Installer</button>
+    <button id="closeBanner">✕</button>
+</div>
+
+<header>
+    <h1 id="current-city">🌤️ Météo Expert</h1>
+    <p id="current-temp-summary">Chargement...</p>
+    <div class="search-container">
+        <input type="text" id="city-input" placeholder="Ville, ex: Paris..." autocomplete="off" autocorrect="off">
+        <button class="btn" onclick="searchCity()">🔍 Chercher</button>
+        <button class="btn btn-location" onclick="getLocation()">📍 Ma position</button>
+    </div>
+    <div class="error-msg" id="error-msg"></div>
+</header>
+
+<div class="container">
+
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        Chargement des données météo...
+    </div>
+
+    <div class="section-title">🗺️ Carte des Vents & Températures</div>
+    <div class="map-container">
+        <iframe id="windy-map" frameborder="0" allowfullscreen></iframe>
+    </div>
+
+    <div class="section-title">🌧️ Carte des Précipitations</div>
+    <div class="map-container">
+        <iframe id="rain-map" frameborder="0" allowfullscreen></iframe>
+    </div>
+
+    <div class="section-title">⏱️ Prévisions sur 72 Heures</div>
+    <div class="hourly-scroll" id="hourly-container"></div>
+
+    <div class="section-title">📅 Prévisions sur 15 Jours</div>
+    <div class="daily-grid" id="daily-container"></div>
+
+</div>
+
+<script>
+    // =====================
+    // ÉTAT
+    // =====================
+    let currentLat = 47.2184;
+    let currentLon = -1.5536;
+    let lastCity = localStorage.getItem('meteo_city') || 'Nantes';
+    let lastLat = parseFloat(localStorage.getItem('meteo_lat')) || currentLat;
+    let lastLon = parseFloat(localStorage.getItem('meteo_lon')) || currentLon;
+
+    window.onload = () => {
+        fetchWeather(lastLat, lastLon, lastCity);
+    };
+
+    // =====================
+    // GÉOLOCALISATION
+    // =====================
+    function getLocation() {
+        if (!navigator.geolocation) { showError("Géolocalisation non supportée."); return; }
+        showLoading(true);
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                currentLat = pos.coords.latitude;
+                currentLon = pos.coords.longitude;
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${currentLat}&lon=${currentLon}`);
+                    const data = await res.json();
+                    const city = data.address.city || data.address.town || data.address.village || "Ma position";
+                    fetchWeather(currentLat, currentLon, city);
+                } catch {
+                    fetchWeather(currentLat, currentLon, "Ma position");
+                }
+            },
+            () => {
+                showLoading(false);
+                showError("Accès à la position refusé. Utilisez la recherche manuelle.");
+            },
+            { timeout: 10000 }
+        );
+    }
+
+    // =====================
+    // RECHERCHE DE VILLE
+    // =====================
+    async function searchCity() {
+        const city = document.getElementById('city-input').value.trim();
+        if (!city) return;
+        showLoading(true);
+        hideError();
+        try {
+            const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=fr&format=json`);
+            const data = await res.json();
+            if (data.results?.length > 0) {
+                currentLat = data.results[0].latitude;
+                currentLon = data.results[0].longitude;
+                fetchWeather(currentLat, currentLon, data.results[0].name);
+            } else {
+                showLoading(false);
+                showError(`Ville "${city}" introuvable.`);
+            }
+        } catch {
+            showLoading(false);
+            showError("Erreur réseau. Vérifiez votre connexion.");
+        }
+    }
+
+    // Recherche avec Entrée
+    document.getElementById('city-input').addEventListener('keypress', e => {
+        if (e.key === 'Enter') searchCity();
+    });
+
+    // =====================
+    // CHARGEMENT MÉTÉO
+    // =====================
+    async function fetchWeather(lat, lon, cityName) {
+        showLoading(true);
+        hideError();
+        document.getElementById('current-city').textContent = '🌤️ ' + cityName;
+        document.getElementById('current-temp-summary').textContent = 'Chargement...';
+
+        // Cartes Windy
+        document.getElementById('windy-map').src = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=5&overlay=wind&product=ecmwf&level=surface&lat=${lat}&lon=${lon}`;
+        document.getElementById('rain-map').src = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=5&overlay=rain&product=ecmwf&level=surface&lat=${lat}&lon=${lon}`;
+
+        // API Open-Meteo
+        const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=16`;
+        try {
+            const res = await fetch(apiUrl);
+            const data = await res.json();
+            renderHourly(data.hourly);
+            renderDaily(data.daily);
+
+            // Résumé aujourd'hui
+            const todayMax = Math.round(data.daily.temperature_2m_max[0]);
+            const todayMin = Math.round(data.daily.temperature_2m_min[0]);
+            const todayCode = data.daily.weathercode[0];
+            document.getElementById('current-temp-summary').textContent =
+                `${getWeatherEmoji(todayCode)} Aujourd'hui : ${todayMax}° / ${todayMin}°`;
+
+            // Sauvegarder la dernière ville
+            localStorage.setItem('meteo_city', cityName);
+            localStorage.setItem('meteo_lat', lat);
+            localStorage.setItem('meteo_lon', lon);
+        } catch {
+            showError("Impossible de charger les prévisions. Vérifiez votre connexion.");
+            document.getElementById('current-temp-summary').textContent = '';
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // =====================
+    // AFFICHAGE 72H
+    // =====================
+    function renderHourly(hourlyData) {
+        const container = document.getElementById('hourly-container');
+        container.innerHTML = '';
+        const now = new Date();
+        const currentHour = now.getHours();
+
+        for (let i = 0; i < 72; i++) {
+            const timeStr = hourlyData.time[i];
+            const temp = Math.round(hourlyData.temperature_2m[i]);
+            const code = hourlyData.weathercode[i];
+            const dateObj = new Date(timeStr);
+            const hour = dateObj.getHours();
+            const day = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' });
+            const emoji = getWeatherEmoji(code);
+
+            const isNow = i === 0 || (dateObj.getDate() === now.getDate() && hour === currentHour);
+
+            const card = document.createElement('div');
+            card.className = 'hourly-card' + (isNow ? ' current-hour' : '');
+            card.innerHTML = `
+                <div class="day-label">${day}</div>
+                <div class="hour-label">${hour}h</div>
+                <div class="weather-emoji">${emoji}</div>
+                <div class="temp-label">${temp}°</div>
+            `;
+            container.appendChild(card);
+
+            // Scroll auto sur l'heure actuelle
+            if (isNow) {
+                setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }), 300);
+            }
+        }
+    }
+
+    // =====================
+    // AFFICHAGE 15 JOURS
+    // =====================
+    function renderDaily(dailyData) {
+        const container = document.getElementById('daily-container');
+        container.innerHTML = '';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const maxDays = Math.min(15, dailyData.time.length);
+        for (let i = 0; i < maxDays; i++) {
+            const dateObj = new Date(dailyData.time[i]);
+            const isToday = dateObj.toDateString() === today.toDateString();
+            const tempMax = Math.round(dailyData.temperature_2m_max[i]);
+            const tempMin = Math.round(dailyData.temperature_2m_min[i]);
+            const code = dailyData.weathercode[i];
+            const dayName = isToday ? "Aujourd'hui" : dateObj.toLocaleDateString('fr-FR', { weekday: 'long' });
+            const dateLabel = dateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+            const emoji = getWeatherEmoji(code);
+
+            const card = document.createElement('div');
+            card.className = 'daily-card' + (isToday ? ' today' : '');
+            card.innerHTML = `
+                <div class="day-name">${dayName}</div>
+                <div class="date-label">${dateLabel}</div>
+                <div class="weather-emoji">${emoji}</div>
+                <div class="temps">
+                    <span class="temp-max">${tempMax}°</span>
+                    <span style="color:#cbd5e0"> / </span>
+                    <span class="temp-min">${tempMin}°</span>
+                </div>
+            `;
+            container.appendChild(card);
+        }
+    }
+
+    // =====================
+    // EMOJIS MÉTÉO WMO
+    // =====================
+    function getWeatherEmoji(code) {
+        if (code === 0) return '☀️';
+        if (code <= 3) return '⛅';
+        if (code <= 48) return '🌫️';
+        if (code <= 55) return '🌦️';
+        if (code <= 67) return '🌧️';
+        if (code <= 77) return '❄️';
+        if (code <= 82) return '🌧️';
+        if (code <= 99) return '⛈️';
+        return '☁️';
+    }
+
+    // =====================
+    // UTILITAIRES UI
+    // =====================
+    function showLoading(show) {
+        document.getElementById('loading').style.display = show ? 'block' : 'none';
+    }
+    function showError(msg) {
+        const el = document.getElementById('error-msg');
+        el.textContent = '⚠️ ' + msg;
+        el.style.display = 'block';
+    }
+    function hideError() {
+        document.getElementById('error-msg').style.display = 'none';
+    }
+
+    // =====================
+    // INSTALLATION PWA
+    // =====================
+    let deferredPrompt;
+    const installBanner = document.getElementById('installBanner');
+
+    window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBanner.style.display = 'flex';
+    });
+
+    document.getElementById('installBtn').addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        installBanner.style.display = 'none';
+    });
+
+    document.getElementById('closeBanner').addEventListener('click', () => {
+        installBanner.style.display = 'none';
+    });
+
+    window.addEventListener('appinstalled', () => {
+        installBanner.style.display = 'none';
+    });
+
+    // =====================
+    // SERVICE WORKER
+    // =====================
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').catch(() => {});
+        });
+    }
+</script>
+
+</body>
+</html>
