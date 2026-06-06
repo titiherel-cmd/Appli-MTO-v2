@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Météo Expert - 15 Jours & 72H</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .search-container {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            width: 250px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--secondary);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+
+        h2 {
+            border-bottom: 2px solid var(--secondary);
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        /* Carte Météo */
+        .map-container {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        /* Prévisions Horaires (Scroll horizontal) */
+        .hourly-scroll {
+            display: flex;
+            overflow-x: auto;
+            gap: 15px;
+            padding: 15px 5px;
+            scroll-behavior: smooth;
+        }
+
+        .hourly-card {
+            min-width: 80px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+
+        .hourly-card img {
+            width: 40px;
+        }
+
+        /* Prévisions 15 Jours */
+        .daily-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .daily-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .loading {
+            text-align: center;
+            font-size: 1.2rem;
+            display: none;
+            margin: 20px 0;
+        }
+
+        #current-city {
+            margin: 0;
+            font-size: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 id="current-city">Météo Locale</h1>
+        <div class="search-container">
+            <input type="text" id="city-input" placeholder="Rechercher une ville (ex: Paris, Nantes)...">
+            <button onclick="searchCity()">Rechercher</button>
+            <button onclick="getLocation()">📍 Ma position</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="loading" id="loading">Chargement des données météo...</div>
+
+        <h2>Carte des Vents et Températures</h2>
+        <div class="map-container">
+            <iframe id="windy-map" width="100%" height="450" frameborder="0" src=""></iframe>
+        </div>
+
+        <h2>Carte des Précipitations</h2>
+        <div class="map-container">
+            <iframe id="rain-map" width="100%" height="450" frameborder="0" src=""></iframe>
+        </div>
+
+
+        <h2>Prévisions sur 72 Heures</h2>
+        <div class="hourly-scroll" id="hourly-container">
+            </div>
+
+        <h2>Prévisions sur 15 Jours</h2>
+        <div class="daily-grid" id="daily-container">
+            </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let currentLat = 47.2184; // Par défaut : Nantes
+        let currentLon = -1.5536;
+
+        // Démarrage de l'app
+        window.onload = () => {
+            fetchWeather(currentLat, currentLon, "Nantes (Défaut)");
+        };
+
+        // --- GÉOLOCALISATION ---
+        function getLocation() {
+            if (navigator.geolocation) {
+                document.getElementById('loading').style.display = 'block';
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        currentLat = position.coords.latitude;
+                        currentLon = position.coords.longitude;
+                        // Trouver le nom de la ville à partir des coordonnées
+                        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${currentLat}&lon=${currentLon}`)
+                            .then(res => res.json())
+                            .then(data => {
+                                const city = data.address.city || data.address.town || data.address.village || "Votre position";
+                                fetchWeather(currentLat, currentLon, city);
+                            });
+                    },
+                    (error) => {
+                        alert("Erreur de géolocalisation. Veuillez autoriser l'accès ou utiliser la recherche manuelle.");
+                        document.getElementById('loading').style.display = 'none';
+                    }
+                );
+            } else {
+                alert("La géolocalisation n'est pas supportée par ce navigateur.");
+            }
+        }
+
+        // --- RECHERCHE DE VILLE ---
+        async function searchCity() {
+            const city = document.getElementById('city-input').value;
+            if (!city) return;
+            
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=fr&format=json`);
+                const data = await res.json();
+                
+                if (data.results && data.results.length > 0) {
+                    currentLat = data.results[0].latitude;
+                    currentLon = data.results[0].longitude;
+                    fetchWeather(currentLat, currentLon, data.results[0].name);
+                } else {
+                    alert("Ville non trouvée.");
+                    document.getElementById('loading').style.display = 'none';
+                }
+            } catch (error) {
+                alert("Erreur lors de la recherche.");
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // --- RÉCUPÉRATION DES DONNÉES MÉTÉO ---
+        async function fetchWeather(lat, lon, cityName) {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('current-city').innerText = cityName;
+            
+            // Mise à jour de la carte Windy
+            const windyUrl = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km/h&zoom=5&overlay=wind&product=ecmwf&level=surface&lat=${lat}&lon=${lon}`;
+            document.getElementById('windy-map').src = windyUrl;
+
+            // Mise à jour de la carte Windy (Précipitations)
+            const rainUrl = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km/h&zoom=5&overlay=rain&product=ecmwf&level=surface&lat=${lat}&lon=${lon}`;
+            document.getElementById('rain-map').src = rainUrl;
+
+
+            // Appel API Open-Meteo (Hourly 72h, Daily 15j)
+            const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=16`;
+            
+            try {
+                const res = await fetch(apiUrl);
+                const data = await res.json();
+                
+                renderHourly(data.hourly);
+                renderDaily(data.daily);
+            } catch (error) {
+                alert("Erreur lors du chargement des prévisions.");
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // --- AFFICHAGE 72 HEURES ---
+        function renderHourly(hourlyData) {
+            const container = document.getElementById('hourly-container');
+            container.innerHTML = '';
+            
+            // On prend les 72 premières heures
+            for (let i = 0; i < 72; i++) {
+                const timeStr = hourlyData.time[i];
+                const temp = Math.round(hourlyData.temperature_2m[i]);
+                const code = hourlyData.weathercode[i];
+                
+                const dateObj = new Date(timeStr);
+                const hour = dateObj.getHours() + "h";
+                const day = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' });
+
+                const emoji = getWeatherEmoji(code);
+
+                container.innerHTML += `
+                    <div class="hourly-card">
+                        <small>${day}</small><br>
+                        <strong>${hour}</strong>
+                        <div style="font-size: 1.5rem; margin: 10px 0;">${emoji}</div>
+                        <strong>${temp}°C</strong>
+                    </div>
+                `;
+            }
+        }
+
+        // --- AFFICHAGE 15 JOURS ---
+        function renderDaily(dailyData) {
+            const container = document.getElementById('daily-container');
+            container.innerHTML = '';
+            
+            // L'API peut renvoyer 16 jours selon le fuseau, on se limite à 15
+            const maxDays = Math.min(15, dailyData.time.length);
+            
+            for (let i = 0; i < maxDays; i++) {
+                const timeStr = dailyData.time[i];
+                const tempMax = Math.round(dailyData.temperature_2m_max[i]);
+                const tempMin = Math.round(dailyData.temperature_2m_min[i]);
+                const code = dailyData.weathercode[i];
+                
+                const dateObj = new Date(timeStr);
+                const dayName = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' });
+                
+                const emoji = getWeatherEmoji(code);
+
+                container.innerHTML += `
+                    <div class="daily-card">
+                        <div style="text-transform: capitalize; font-weight: bold; margin-bottom: 10px;">${dayName}</div>
+                        <div style="font-size: 2rem;">${emoji}</div>
+                        <div style="margin-top: 10px;">
+                            <span style="color: #e74c3c;">${tempMax}°</span> / 
+                            <span style="color: #3498db;">${tempMin}°</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // --- TRADUCTION DES CODES MÉTÉO (WMO) EN EMOJIS ---
+        function getWeatherEmoji(code) {
+            if (code === 0) return '☀️'; // Dégagé
+            if (code === 1 || code === 2 || code === 3) return '⛅'; // Partiellement nuageux
+            if (code === 45 || code === 48) return '🌫️'; // Brouillard
+            if (code >= 51 && code <= 55) return '🌧️'; // Bruine
+            if (code >= 61 && code <= 67) return '🌦️'; // Pluie
+            if (code >= 71 && code <= 77) return '❄️'; // Neige
+            if (code >= 80 && code <= 82) return '🌧️'; // Averses
+            if (code >= 95 && code <= 99) return '⛈️'; // Orages
+            return '☁️';
+        }
+    </script>
+    
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('Service Worker enregistré avec succès');
+                    })
+                    .catch(err => {
+                        console.log('Erreur d\'enregistrement du Service Worker', err);
+                    });
+            });
+        }
+    </script>
+
+</body>
+</html>

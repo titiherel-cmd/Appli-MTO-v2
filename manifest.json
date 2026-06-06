@@ -1,0 +1,16 @@
+{
+  "name": "Météo Expert",
+  "short_name": "Météo",
+  "description": "Prévisions météo sur 15 jours et 72h",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f7f6",
+  "theme_color": "#2c3e50",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
