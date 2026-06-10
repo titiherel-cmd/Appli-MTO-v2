@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Météo Expert - 15 Jours & 72H</title>
+    <title>Météo ARL - Mer & Côte</title>
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#1a2a3a">
     <meta name="mobile-web-app-capable" content="yes">
@@ -12,7 +12,6 @@
     <meta name="apple-mobile-web-app-title" content="Météo ARL">
     <link rel="apple-touch-icon" href="./icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-
     <style>
         :root {
             --primary: #1a2a3a;
@@ -25,6 +24,7 @@
             --tide-high: #e74c3c;
             --today-glow: #f39c12;
             --now-glow: #00d4aa;
+            --sea: #0077b6;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -53,7 +53,6 @@
             inset: 0;
             background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
         }
-
         #current-city {
             margin: 0 0 4px;
             font-size: clamp(1.6rem, 6vw, 2.4rem);
@@ -61,14 +60,12 @@
             letter-spacing: -0.5px;
             position: relative;
         }
-
         #current-time-display {
             font-size: 0.85rem;
             opacity: 0.65;
             margin-bottom: 14px;
             letter-spacing: 0.5px;
         }
-
         .search-container {
             display: flex;
             justify-content: center;
@@ -76,7 +73,6 @@
             flex-wrap: wrap;
             position: relative;
         }
-
         input[type="text"] {
             padding: 10px 16px;
             width: 240px;
@@ -92,7 +88,6 @@
         }
         input[type="text"]::placeholder { color: rgba(255,255,255,0.55); }
         input[type="text"]:focus { background: rgba(255,255,255,0.25); }
-
         .btn {
             padding: 10px 18px;
             border: none;
@@ -110,6 +105,23 @@
         .btn-locate:hover { background: rgba(255,255,255,0.28); }
         .btn-reset { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); padding: 10px 13px; }
         .btn-reset:hover { background: rgba(220,50,50,0.35); color: white; }
+
+        /* ── ALERTES ── */
+        #alert-banner {
+            display: none;
+            margin: 0;
+            padding: 12px 20px;
+            background: linear-gradient(90deg, #c0392b, #e74c3c);
+            color: white;
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-align: center;
+            animation: pulse-alert 2s infinite;
+        }
+        @keyframes pulse-alert {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+        }
 
         /* ── CONTAINER ── */
         .container {
@@ -151,6 +163,106 @@
             margin-bottom: 8px;
         }
 
+        /* ── CARDS GRID ── */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 8px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 18px 16px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+            text-align: center;
+        }
+        .card h3 {
+            margin: 0 0 12px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .card .card-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: var(--primary);
+            line-height: 1;
+        }
+        .card .card-unit {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 4px;
+        }
+        .card .card-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 6px;
+            font-weight: 600;
+        }
+
+        /* ── CARTE MER ── */
+        .sea-card {
+            background: linear-gradient(145deg, #e0f4ff, #fff);
+            border-top: 4px solid var(--sea);
+        }
+        .sea-card h3 { color: var(--sea); }
+        .sea-card .card-value { color: var(--sea); }
+
+        /* ── BAIGNADE ── */
+        .swim-card {
+            grid-column: span 2;
+            text-align: left;
+            padding: 20px;
+        }
+        @media (max-width: 500px) { .swim-card { grid-column: span 1; } }
+        .swim-score {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .swim-emoji { font-size: 3rem; }
+        .swim-label { font-size: 1.2rem; font-weight: 800; }
+        .swim-details { font-size: 0.82rem; color: #888; margin-top: 4px; }
+
+        /* ── UV BAR ── */
+        .uv-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #4caf50, #ffeb3b, #ff9800, #f44336, #9c27b0);
+            margin-top: 8px;
+            position: relative;
+        }
+        .uv-marker {
+            position: absolute;
+            top: -4px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border: 3px solid #333;
+            border-radius: 50%;
+            transform: translateX(-50%);
+            transition: left 0.5s;
+        }
+
+        /* ── QUALITÉ AIR ── */
+        .aqi-badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+        .aqi-1 { background: #e8f5e9; color: #2e7d32; }
+        .aqi-2 { background: #f9fbe7; color: #558b2f; }
+        .aqi-3 { background: #fff8e1; color: #f57f17; }
+        .aqi-4 { background: #fbe9e7; color: #bf360c; }
+        .aqi-5 { background: #fce4ec; color: #880e4f; }
+
         /* ── SOLEIL & MARÉES ── */
         .sun-tide-grid {
             display: grid;
@@ -160,24 +272,6 @@
         }
         @media (max-width: 768px) { .sun-tide-grid { grid-template-columns: 1fr; } }
 
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.07);
-        }
-
-        .card h3 {
-            margin: 0 0 16px;
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* Soleil */
         .sun-card { background: linear-gradient(145deg, #fffbf0, #fff); }
         .sun-times { display: flex; justify-content: space-around; gap: 10px; margin-bottom: 14px; }
         .sun-time-item { text-align: center; }
@@ -186,7 +280,6 @@
         .sun-value { font-size: 1.25rem; font-weight: 800; color: var(--primary); }
         .sun-duration { text-align: center; background: linear-gradient(90deg, #fff3cd, #fff8e1); border-radius: 10px; padding: 9px 12px; font-size: 0.88rem; color: #856404; font-weight: 600; }
 
-        /* Marées */
         .tide-card { background: linear-gradient(145deg, #eef7ff, #fff); }
         .tide-port-selector { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
         .tide-port-selector label { font-size: 0.85rem; font-weight: 600; color: #666; }
@@ -203,6 +296,25 @@
         .tide-coef { display: inline-block; margin-top: 6px; background: #edf2f7; border-radius: 20px; padding: 2px 10px; font-size: 0.85rem; font-weight: 700; color: #444; }
         .tide-notice { font-size: 0.75rem; color: #bbb; text-align: center; margin-top: 10px; font-style: italic; }
         .tide-loading { text-align: center; padding: 20px; color: #aaa; font-style: italic; }
+
+        /* ── GRAPHIQUE TEMPÉRATURE ── */
+        .temp-chart-container {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+            overflow: hidden;
+        }
+        .temp-chart-container h3 {
+            margin: 0 0 16px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        #temp-chart {
+            width: 100%;
+            height: 140px;
+        }
 
         /* ── PRÉVISIONS HORAIRES ── */
         .hourly-scroll {
@@ -235,12 +347,10 @@
         .hourly-card .hour-label { font-size: 0.95rem; font-weight: 700; color: var(--primary); }
         .hourly-card .weather-emoji { font-size: 1.6rem; margin: 8px 0; }
         .hourly-card .temp-label { font-size: 1rem; font-weight: 700; color: var(--primary); }
-
-        /* ✨ SURBRILLANCE HEURE ACTUELLE */
         .hourly-card.is-now {
             background: linear-gradient(145deg, #e0fff8, #f0fffc);
             border-color: var(--now-glow);
-            box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.2), 0 6px 20px rgba(0,212,170,0.2);
+            box-shadow: 0 0 0 3px rgba(0,212,170,0.2), 0 6px 20px rgba(0,212,170,0.2);
             transform: translateY(-4px) scale(1.05);
             position: relative;
         }
@@ -259,7 +369,6 @@
             padding: 3px 7px;
             border-radius: 6px;
             white-space: nowrap;
-            letter-spacing: 0.3px;
         }
 
         /* ── PRÉVISIONS 15 JOURS ── */
@@ -268,7 +377,6 @@
             grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
             gap: 12px;
         }
-
         .daily-card {
             background: white;
             padding: 16px 12px;
@@ -277,7 +385,6 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.07);
             border: 2px solid transparent;
             transition: transform 0.2s, box-shadow 0.2s;
-            cursor: default;
         }
         .daily-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
         .daily-card .day-name { font-size: 0.82rem; font-weight: 700; color: #666; text-transform: capitalize; margin-bottom: 8px; }
@@ -285,8 +392,6 @@
         .daily-card .temps { margin-top: 10px; font-size: 1rem; }
         .daily-card .temp-max { color: #e74c3c; font-weight: 700; }
         .daily-card .temp-min { color: #3498db; font-weight: 600; }
-
-        /* ✨ SURBRILLANCE JOUR ACTUEL */
         .daily-card.is-today {
             background: linear-gradient(145deg, #fffbe6, #fff8d6);
             border-color: var(--today-glow);
@@ -294,10 +399,7 @@
             transform: translateY(-4px);
             position: relative;
         }
-        .daily-card.is-today .day-name {
-            color: #b7770d;
-            font-size: 0.9rem;
-        }
+        .daily-card.is-today .day-name { color: #b7770d; font-size: 0.9rem; }
         .daily-card.is-today::before {
             content: "Aujourd'hui";
             position: absolute;
@@ -311,7 +413,6 @@
             padding: 3px 7px;
             border-radius: 6px;
             white-space: nowrap;
-            letter-spacing: 0.3px;
         }
 
         /* ── FOOTER ── */
@@ -337,14 +438,105 @@
         <div id="saved-city-badge" style="font-size:0.72rem;opacity:0.6;margin-top:8px;display:none;">📌 Ville mémorisée</div>
     </header>
 
+    <div id="alert-banner"></div>
+
     <div class="container">
         <div class="loading" id="loading">⏳ Chargement des données météo...</div>
 
+        <!-- CARTE WINDY -->
         <div class="section-title"><span class="icon">🗺️</span> Carte interactive <small style="font-size:0.7em;font-weight:400;color:#888;margin-left:6px;">(vent, température, précipitations)</small></div>
         <div class="map-container">
             <iframe id="windy-map" width="100%" height="420" frameborder="0" src=""></iframe>
         </div>
 
+        <!-- MER & CÔTE -->
+        <div class="section-title"><span class="icon">🌊</span> Mer &amp; Côte</div>
+        <div class="cards-grid" id="sea-cards">
+            <div class="card sea-card">
+                <h3>🌡️ Temp. eau</h3>
+                <div class="card-value" id="sea-temp">--</div>
+                <div class="card-unit">°C</div>
+                <div class="card-label" id="sea-temp-label">--</div>
+            </div>
+            <div class="card sea-card">
+                <h3>🌊 Vagues</h3>
+                <div class="card-value" id="wave-height">--</div>
+                <div class="card-unit">m</div>
+                <div class="card-label" id="wave-label">--</div>
+            </div>
+            <div class="card sea-card">
+                <h3>⏱️ Période</h3>
+                <div class="card-value" id="wave-period">--</div>
+                <div class="card-unit">secondes</div>
+                <div class="card-label" id="wave-period-label">--</div>
+            </div>
+            <div class="card sea-card">
+                <h3>💨 Vent mer</h3>
+                <div class="card-value" id="sea-wind">--</div>
+                <div class="card-unit">km/h</div>
+                <div class="card-label" id="sea-wind-label">--</div>
+            </div>
+            <div class="card swim-card">
+                <h3 style="font-size:0.85rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">🏊 Qualité baignade</h3>
+                <div class="swim-score">
+                    <div class="swim-emoji" id="swim-emoji">⏳</div>
+                    <div>
+                        <div class="swim-label" id="swim-label">Chargement...</div>
+                        <div class="swim-details" id="swim-details"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DONNÉES MÉTÉO -->
+        <div class="section-title"><span class="icon">📊</span> Données Météo Détaillées</div>
+        <div class="cards-grid">
+            <div class="card">
+                <h3>☀️ Indice UV</h3>
+                <div class="card-value" id="uv-value">--</div>
+                <div class="card-unit">/ 11+</div>
+                <div class="uv-bar"><div class="uv-marker" id="uv-marker" style="left:0%"></div></div>
+                <div class="card-label" id="uv-label">--</div>
+            </div>
+            <div class="card">
+                <h3>💧 Humidité</h3>
+                <div class="card-value" id="humidity-value">--</div>
+                <div class="card-unit">%</div>
+                <div class="card-label" id="humidity-label">--</div>
+            </div>
+            <div class="card">
+                <h3>🌡️ Ressenti</h3>
+                <div class="card-value" id="feels-like">--</div>
+                <div class="card-unit">°C</div>
+                <div class="card-label">Température ressentie</div>
+            </div>
+            <div class="card">
+                <h3>🌬️ Pression</h3>
+                <div class="card-value" id="pressure-value">--</div>
+                <div class="card-unit">hPa</div>
+                <div class="card-label" id="pressure-label">--</div>
+            </div>
+            <div class="card">
+                <h3>🌫️ Qualité air</h3>
+                <div class="card-value" id="aqi-value">--</div>
+                <div class="card-unit">IQA</div>
+                <div id="aqi-badge" class="aqi-badge">--</div>
+            </div>
+            <div class="card">
+                <h3>👁️ Visibilité</h3>
+                <div class="card-value" id="visibility-value">--</div>
+                <div class="card-unit">km</div>
+                <div class="card-label" id="visibility-label">--</div>
+            </div>
+        </div>
+
+        <!-- GRAPHIQUE TEMPÉRATURE -->
+        <div class="section-title"><span class="icon">📈</span> Graphique Températures 24h</div>
+        <div class="temp-chart-container">
+            <canvas id="temp-chart"></canvas>
+        </div>
+
+        <!-- SOLEIL & MARÉES -->
         <div class="section-title"><span class="icon">☀️</span> Soleil &amp; <span class="icon">🌊</span> Marées</div>
         <div class="sun-tide-grid">
             <div class="card sun-card">
@@ -363,7 +555,6 @@
                 </div>
                 <div class="sun-duration" id="sun-duration">Durée du jour : --h --min</div>
             </div>
-
             <div class="card tide-card">
                 <h3>🌊 Marées du jour</h3>
                 <div class="tide-port-selector">
@@ -398,36 +589,30 @@
             </div>
         </div>
 
+        <!-- PRÉVISIONS HORAIRES -->
         <div class="section-title"><span class="icon">🕐</span> Prévisions sur 72 Heures</div>
         <div class="hourly-scroll" id="hourly-container"></div>
 
+        <!-- PRÉVISIONS 15 JOURS -->
         <div class="section-title"><span class="icon">📅</span> Prévisions sur 15 Jours</div>
         <div class="daily-grid" id="daily-container"></div>
     </div>
 
-    <footer>Données : Open-Meteo · Windy · Marées calculées localement</footer>
+    <footer>Données : Open-Meteo · Open-Meteo Marine · Open-Meteo Air Quality · Meteo-Concept · Windy · Marées calculées localement</footer>
 
     <script>
-        // ─── CLÉ METEO-CONCEPT ───────────────────────────────────────────────
         const METEO_CONCEPT_TOKEN = '7b9e9fdc7aafcdb851dcd13d8ece7fbcce4d8baef42ca516e261b1c0f327eb7a';
-
-        // ─── PERSISTANCE LOCALSTORAGE ────────────────────────────────────────
         const STORAGE_KEY = 'meteo_app_prefs';
 
         function savePrefs(lat, lon, cityName) {
             try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                    lat, lon, cityName,
-                    tidePort: document.getElementById('tide-port').value
-                }));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ lat, lon, cityName, tidePort: document.getElementById('tide-port').value }));
                 document.getElementById('saved-city-badge').style.display = 'block';
             } catch(e) {}
         }
-
         function loadPrefs() {
             try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e) { return null; }
         }
-
         function saveTidePort(portKey) {
             try {
                 const prefs = loadPrefs() || {};
@@ -435,29 +620,24 @@
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
             } catch(e) {}
         }
-
         function resetCity() {
             try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
             document.getElementById('saved-city-badge').style.display = 'none';
         }
 
-        // ─── ÉTAT GLOBAL ─────────────────────────────────────────────────────
         let currentLat = 47.2184;
         let currentLon = -1.5536;
         let currentCityName = "Nantes (Défaut)";
         let currentInseeCode = null;
 
-        // ─── HORLOGE ─────────────────────────────────────────────────────────
         function updateClock() {
             const now = new Date();
             const opts = { weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit' };
-            document.getElementById('current-time-display').textContent =
-                now.toLocaleDateString('fr-FR', opts);
+            document.getElementById('current-time-display').textContent = now.toLocaleDateString('fr-FR', opts);
         }
         updateClock();
         setInterval(updateClock, 30000);
 
-        // ─── DÉMARRAGE ───────────────────────────────────────────────────────
         window.onload = async () => {
             const prefs = loadPrefs();
             if (prefs && prefs.lat && prefs.lon && prefs.cityName) {
@@ -467,14 +647,11 @@
                 if (prefs.tidePort) document.getElementById('tide-port').value = prefs.tidePort;
                 document.getElementById('saved-city-badge').style.display = 'block';
                 await fetchInseeCode(currentCityName, currentLat, currentLon);
-                fetchWeather(currentLat, currentLon, currentCityName);
-            } else {
-                fetchWeather(currentLat, currentLon, currentCityName);
             }
+            fetchWeather(currentLat, currentLon, currentCityName);
             fetchTides();
         };
 
-        // ─── GÉOLOCALISATION ─────────────────────────────────────────────────
         function getLocation() {
             if (!navigator.geolocation) return alert("Géolocalisation non supportée.");
             document.getElementById('loading').style.display = 'block';
@@ -493,7 +670,6 @@
             );
         }
 
-        // ─── RECHERCHE VILLE ─────────────────────────────────────────────────
         async function searchCity() {
             const city = document.getElementById('city-input').value.trim();
             if (!city) return;
@@ -515,7 +691,6 @@
             } catch { alert("Erreur lors de la recherche."); document.getElementById('loading').style.display = 'none'; }
         }
 
-        // ─── CODE INSEE ───────────────────────────────────────────────────────
         async function fetchInseeCode(cityName, lat, lon) {
             try {
                 const res = await fetch(`https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(cityName)}&lat=${lat}&lon=${lon}&limit=1&fields=code`);
@@ -524,29 +699,298 @@
             } catch { currentInseeCode = null; }
         }
 
-        // ─── MÉTÉO PRINCIPALE ─────────────────────────────────────────────────
         async function fetchWeather(lat, lon, cityName) {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('current-city').innerText = cityName;
+
+            // Windy
             document.getElementById('windy-map').src =
                 `https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km/h&zoom=10&overlay=wind&product=ecmwf&level=surface&lat=${lat}&lon=${lon}&marker=true`;
 
-            const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode,precipitation_probability,windspeed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum&timezone=auto&forecast_days=16`;
-
-            // Meteo-Concept si insee disponible
+            // Meteo-Concept
             let meteoConcept = null;
-            if (currentInseeCode) {
-                meteoConcept = await fetchMeteoConcept(currentInseeCode);
-            }
+            if (currentInseeCode) meteoConcept = await fetchMeteoConcept(currentInseeCode);
+
+            // Open-Meteo principal
+            const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+                + `&hourly=temperature_2m,weathercode,precipitation_probability,windspeed_10m,relativehumidity_2m,apparent_temperature,visibility,uv_index,surface_pressure`
+                + `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,uv_index_max`
+                + `&current_weather=true&timezone=auto&forecast_days=16`;
+
+            // Open-Meteo Marine
+            const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}`
+                + `&hourly=wave_height,wave_period,wind_wave_height,sea_surface_temperature`
+                + `&current_weather=false&timezone=auto&forecast_days=1`;
+
+            // Open-Meteo Air Quality
+            const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}`
+                + `&hourly=european_aqi&timezone=auto&forecast_days=1`;
 
             try {
-                const res = await fetch(apiUrl);
+                const [res, marineRes, aqiRes] = await Promise.all([
+                    fetch(apiUrl),
+                    fetch(marineUrl).catch(() => null),
+                    fetch(aqiUrl).catch(() => null)
+                ]);
+
                 const data = await res.json();
+                const marineData = marineRes ? await marineRes.json().catch(() => null) : null;
+                const aqiData = aqiRes ? await aqiRes.json().catch(() => null) : null;
+
+                // Heure courante
+                const now = new Date();
+                const currentHourIdx = data.hourly.time.findIndex(t => {
+                    const d = new Date(t);
+                    return d.getHours() === now.getHours() && d.toDateString() === now.toDateString();
+                });
+                const idx = currentHourIdx >= 0 ? currentHourIdx : 0;
+
+                // Données horaires actuelles
+                const uv       = data.hourly.uv_index?.[idx] ?? null;
+                const humidity = data.hourly.relativehumidity_2m?.[idx] ?? null;
+                const feelsLike= data.hourly.apparent_temperature?.[idx] ?? null;
+                const pressure = data.hourly.surface_pressure?.[idx] ?? null;
+                const visibility= data.hourly.visibility?.[idx] ?? null;
+                const wind     = data.hourly.windspeed_10m?.[idx] ?? null;
+
+                renderMeteoDetails(uv, humidity, feelsLike, pressure, visibility);
+                renderAQI(aqiData, idx);
+                renderMarineData(marineData, lat, lon);
+                checkAlerts(wind, uv, marineData, idx);
                 renderHourly(data.hourly);
                 renderDaily(data.daily, meteoConcept);
                 renderSunTimes(data.daily);
-            } catch { alert("Erreur lors du chargement des prévisions."); }
+                renderTempChart(data.hourly, now);
+
+            } catch(e) { alert("Erreur lors du chargement des prévisions."); }
             finally { document.getElementById('loading').style.display = 'none'; }
+        }
+
+        // ─── DONNÉES MÉTÉO DÉTAILLÉES ─────────────────────────────────────────
+        function renderMeteoDetails(uv, humidity, feelsLike, pressure, visibility) {
+            // UV
+            if (uv !== null) {
+                document.getElementById('uv-value').textContent = uv.toFixed(1);
+                const uvPct = Math.min(uv / 11 * 100, 100);
+                document.getElementById('uv-marker').style.left = uvPct + '%';
+                const uvLabels = ['Faible','Faible','Modéré','Modéré','Élevé','Élevé','Très élevé','Très élevé','Extrême','Extrême','Extrême','Extrême'];
+                document.getElementById('uv-label').textContent = uvLabels[Math.min(Math.floor(uv), 11)] || 'Extrême';
+            }
+            // Humidité
+            if (humidity !== null) {
+                document.getElementById('humidity-value').textContent = Math.round(humidity);
+                document.getElementById('humidity-label').textContent = humidity < 30 ? '🏜️ Très sec' : humidity < 50 ? '✅ Confortable' : humidity < 70 ? '💧 Humide' : '🌧️ Très humide';
+            }
+            // Ressenti
+            if (feelsLike !== null) document.getElementById('feels-like').textContent = Math.round(feelsLike);
+            // Pression
+            if (pressure !== null) {
+                document.getElementById('pressure-value').textContent = Math.round(pressure);
+                document.getElementById('pressure-label').textContent = pressure < 1000 ? '⬇️ Basse (perturbé)' : pressure < 1013 ? '➡️ Normale' : '⬆️ Haute (stable)';
+            }
+            // Visibilité
+            if (visibility !== null) {
+                const visKm = (visibility / 1000).toFixed(1);
+                document.getElementById('visibility-value').textContent = visKm;
+                document.getElementById('visibility-label').textContent = visibility < 1000 ? '🌫️ Très réduite' : visibility < 5000 ? '😶‍🌫️ Réduite' : visibility < 10000 ? '👁️ Correcte' : '✅ Excellente';
+            }
+        }
+
+        // ─── QUALITÉ AIR ──────────────────────────────────────────────────────
+        function renderAQI(aqiData, idx) {
+            if (!aqiData?.hourly?.european_aqi) return;
+            const aqi = aqiData.hourly.european_aqi[idx];
+            if (aqi == null) return;
+            document.getElementById('aqi-value').textContent = Math.round(aqi);
+            let level, label;
+            if (aqi <= 20)       { level = 1; label = '😊 Très bonne'; }
+            else if (aqi <= 40)  { level = 2; label = '🙂 Bonne'; }
+            else if (aqi <= 60)  { level = 3; label = '😐 Modérée'; }
+            else if (aqi <= 80)  { level = 4; label = '😷 Mauvaise'; }
+            else                 { level = 5; label = '🤢 Très mauvaise'; }
+            const badge = document.getElementById('aqi-badge');
+            badge.textContent = label;
+            badge.className = `aqi-badge aqi-${level}`;
+        }
+
+        // ─── DONNÉES MARINES ─────────────────────────────────────────────────
+        function renderMarineData(marineData, lat, lon) {
+            if (!marineData?.hourly) {
+                document.getElementById('sea-temp').textContent = '--';
+                document.getElementById('wave-height').textContent = '--';
+                document.getElementById('wave-period').textContent = '--';
+                document.getElementById('sea-wind').textContent = '--';
+                document.getElementById('swim-label').textContent = 'Données marines non disponibles pour ce lieu';
+                document.getElementById('swim-emoji').textContent = '❓';
+                return;
+            }
+
+            const now = new Date();
+            const idx = marineData.hourly.time?.findIndex(t => {
+                const d = new Date(t);
+                return d.getHours() === now.getHours() && d.toDateString() === now.toDateString();
+            }) ?? 0;
+            const i = idx >= 0 ? idx : 0;
+
+            const seaTemp   = marineData.hourly.sea_surface_temperature?.[i];
+            const waveH     = marineData.hourly.wave_height?.[i];
+            const wavePer   = marineData.hourly.wave_period?.[i];
+            const windWave  = marineData.hourly.wind_wave_height?.[i];
+
+            if (seaTemp != null) {
+                document.getElementById('sea-temp').textContent = seaTemp.toFixed(1);
+                document.getElementById('sea-temp-label').textContent = seaTemp < 15 ? '🥶 Froide' : seaTemp < 20 ? '🙂 Fraîche' : seaTemp < 24 ? '😊 Agréable' : '🔥 Chaude';
+            }
+            if (waveH != null) {
+                document.getElementById('wave-height').textContent = waveH.toFixed(1);
+                document.getElementById('wave-label').textContent = waveH < 0.5 ? '🪷 Mer calme' : waveH < 1.5 ? '〰️ Mer belle' : waveH < 2.5 ? '🌊 Mer agitée' : '⛵ Forte houle';
+            }
+            if (wavePer != null) {
+                document.getElementById('wave-period').textContent = Math.round(wavePer);
+                document.getElementById('wave-period-label').textContent = wavePer < 6 ? 'Petites vagues' : wavePer < 10 ? 'Houle modérée' : 'Longue houle';
+            }
+
+            // Vent sur mer (on prend windspeed_10m de l'API principale s'il est déjà rendu)
+            document.getElementById('sea-wind').textContent = '--';
+            document.getElementById('sea-wind-label').textContent = '';
+
+            // Score baignade
+            renderSwimScore(seaTemp, waveH, windWave);
+        }
+
+        function renderSwimScore(seaTemp, waveH, windWave) {
+            let score = 100;
+            let reasons = [];
+
+            if (seaTemp != null) {
+                if (seaTemp < 12)      { score -= 40; reasons.push('eau très froide'); }
+                else if (seaTemp < 16) { score -= 20; reasons.push('eau fraîche'); }
+                else if (seaTemp > 28) { score -= 10; reasons.push('eau très chaude'); }
+            }
+            if (waveH != null) {
+                if (waveH > 2.5)      { score -= 50; reasons.push('vagues dangereuses'); }
+                else if (waveH > 1.5) { score -= 30; reasons.push('vagues importantes'); }
+                else if (waveH > 0.8) { score -= 15; reasons.push('vagues modérées'); }
+            }
+            if (windWave != null && windWave > 1.0) { score -= 10; reasons.push('mer venteuse'); }
+
+            score = Math.max(0, score);
+            let emoji, label;
+            if (score >= 80)      { emoji = '🏊'; label = 'Excellente'; }
+            else if (score >= 60) { emoji = '😊'; label = 'Bonne'; }
+            else if (score >= 40) { emoji = '⚠️'; label = 'Moyenne'; }
+            else if (score >= 20) { emoji = '😬'; label = 'Déconseillée'; }
+            else                  { emoji = '🚫'; label = 'Dangereuse'; }
+
+            document.getElementById('swim-emoji').textContent = emoji;
+            document.getElementById('swim-label').textContent = label + ` (${score}/100)`;
+            document.getElementById('swim-details').textContent = reasons.length > 0 ? '⚠️ ' + reasons.join(', ') : '✅ Conditions idéales';
+        }
+
+        // ─── ALERTES ─────────────────────────────────────────────────────────
+        function checkAlerts(wind, uv, marineData, idx) {
+            const alerts = [];
+            if (wind != null && wind > 60)  alerts.push(`💨 Vent fort : ${Math.round(wind)} km/h`);
+            if (uv != null && uv >= 8)      alerts.push(`☀️ UV extrême : ${uv.toFixed(1)} — Protection indispensable`);
+
+            if (marineData?.hourly) {
+                const i = idx >= 0 ? idx : 0;
+                const waveH = marineData.hourly.wave_height?.[i];
+                if (waveH != null && waveH > 2.5) alerts.push(`🌊 Forte houle : ${waveH.toFixed(1)} m`);
+            }
+
+            const banner = document.getElementById('alert-banner');
+            if (alerts.length > 0) {
+                banner.textContent = '⚠️ ' + alerts.join('  •  ');
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        // ─── GRAPHIQUE TEMPÉRATURE ────────────────────────────────────────────
+        function renderTempChart(hourlyData, now) {
+            const canvas = document.getElementById('temp-chart');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.offsetWidth || 600;
+            const H = 140;
+            canvas.width = W;
+            canvas.height = H;
+
+            // Prendre 24h à partir de l'heure courante
+            const nowStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + 'T' + String(now.getHours()).padStart(2,'0') + ':00';
+            const startIdx = Math.max(0, hourlyData.time.indexOf(nowStr));
+            const temps = hourlyData.temperature_2m.slice(startIdx, startIdx + 24);
+            const times = hourlyData.time.slice(startIdx, startIdx + 24);
+            if (temps.length === 0) return;
+
+            const minT = Math.min(...temps) - 2;
+            const maxT = Math.max(...temps) + 2;
+            const padL = 36, padR = 10, padT = 20, padB = 24;
+            const cW = W - padL - padR;
+            const cH = H - padT - padB;
+
+            const xOf = i => padL + (i / (temps.length - 1)) * cW;
+            const yOf = t => padT + cH - ((t - minT) / (maxT - minT)) * cH;
+
+            ctx.clearRect(0, 0, W, H);
+
+            // Grille légère
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = padT + (i / 4) * cH;
+                ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+            }
+
+            // Dégradé sous la courbe
+            const grad = ctx.createLinearGradient(0, padT, 0, H - padB);
+            grad.addColorStop(0, 'rgba(52,152,219,0.35)');
+            grad.addColorStop(1, 'rgba(52,152,219,0.02)');
+            ctx.beginPath();
+            ctx.moveTo(xOf(0), yOf(temps[0]));
+            temps.forEach((t, i) => { if (i > 0) ctx.lineTo(xOf(i), yOf(t)); });
+            ctx.lineTo(xOf(temps.length - 1), H - padB);
+            ctx.lineTo(xOf(0), H - padB);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Courbe
+            ctx.beginPath();
+            ctx.moveTo(xOf(0), yOf(temps[0]));
+            temps.forEach((t, i) => { if (i > 0) ctx.lineTo(xOf(i), yOf(t)); });
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            // Labels heures + valeurs
+            ctx.fillStyle = '#888';
+            ctx.font = '10px Outfit, sans-serif';
+            ctx.textAlign = 'center';
+            temps.forEach((t, i) => {
+                if (i % 3 === 0) {
+                    const h = new Date(times[i]).getHours();
+                    ctx.fillText(h + 'h', xOf(i), H - 6);
+                }
+            });
+
+            // Valeurs min/max
+            const maxIdx = temps.indexOf(Math.max(...temps));
+            const minIdx = temps.indexOf(Math.min(...temps));
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 11px Outfit, sans-serif';
+            ctx.fillText(Math.round(temps[maxIdx]) + '°', xOf(maxIdx), yOf(temps[maxIdx]) - 6);
+            ctx.fillStyle = '#3498db';
+            ctx.fillText(Math.round(temps[minIdx]) + '°', xOf(minIdx), yOf(temps[minIdx]) + 14);
+
+            // Axe Y
+            ctx.fillStyle = '#bbb';
+            ctx.font = '10px Outfit, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(Math.round(maxT) + '°', padL - 4, padT + 4);
+            ctx.fillText(Math.round(minT) + '°', padL - 4, H - padB);
         }
 
         // ─── METEO-CONCEPT ────────────────────────────────────────────────────
@@ -603,27 +1047,6 @@
             const port = TIDE_PORTS[portKey];
             document.getElementById('tide-container').innerHTML = '<div class="tide-loading">Calcul des marées...</div>';
             renderTidesLocal(port);
-        }
-
-        function renderTidesFromAPI(extremes, portName) {
-            const container = document.getElementById('tide-container');
-            container.innerHTML = '';
-            const list = document.createElement('div');
-            list.className = 'tide-list';
-            extremes.forEach(e => {
-                const dt = new Date(e.date * 1000);
-                const pad = n => String(n).padStart(2,'0');
-                const isHigh = e.type === 'High';
-                const coef = isHigh ? Math.round((e.height/7)*120) : null;
-                list.innerHTML += `
-                    <div class="tide-item ${isHigh ? 'high' : 'low'}">
-                        <div class="tide-type">${isHigh ? '⬆️ Pleine mer' : '⬇️ Basse mer'}</div>
-                        <div class="tide-time">${pad(dt.getHours())}h${pad(dt.getMinutes())}</div>
-                        <div style="font-size:0.78rem;color:#999;margin-top:4px;">${e.height.toFixed(1)} m</div>
-                        ${isHigh && coef ? `<div class="tide-coef">Coef. ~${coef}</div>` : ''}
-                    </div>`;
-            });
-            container.appendChild(list);
         }
 
         function renderTidesLocal(port) {
