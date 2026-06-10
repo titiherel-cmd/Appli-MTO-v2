@@ -449,45 +449,6 @@
             <iframe id="windy-map" width="100%" height="420" frameborder="0" src=""></iframe>
         </div>
 
-        <!-- MER & CÔTE -->
-        <div class="section-title"><span class="icon">🌊</span> Mer &amp; Côte</div>
-        <div class="cards-grid" id="sea-cards">
-            <div class="card sea-card">
-                <h3>🌡️ Temp. eau</h3>
-                <div class="card-value" id="sea-temp">--</div>
-                <div class="card-unit">°C</div>
-                <div class="card-label" id="sea-temp-label">--</div>
-            </div>
-            <div class="card sea-card">
-                <h3>🌊 Vagues</h3>
-                <div class="card-value" id="wave-height">--</div>
-                <div class="card-unit">m</div>
-                <div class="card-label" id="wave-label">--</div>
-            </div>
-            <div class="card sea-card">
-                <h3>⏱️ Période</h3>
-                <div class="card-value" id="wave-period">--</div>
-                <div class="card-unit">secondes</div>
-                <div class="card-label" id="wave-period-label">--</div>
-            </div>
-            <div class="card sea-card">
-                <h3>💨 Vent mer</h3>
-                <div class="card-value" id="sea-wind">--</div>
-                <div class="card-unit">km/h</div>
-                <div class="card-label" id="sea-wind-label">--</div>
-            </div>
-            <div class="card swim-card">
-                <h3 style="font-size:0.85rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">🏊 Qualité baignade</h3>
-                <div class="swim-score">
-                    <div class="swim-emoji" id="swim-emoji">⏳</div>
-                    <div>
-                        <div class="swim-label" id="swim-label">Chargement...</div>
-                        <div class="swim-details" id="swim-details"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- DONNÉES MÉTÉO -->
         <div class="section-title"><span class="icon">📊</span> Données Météo Détaillées</div>
         <div class="cards-grid">
@@ -589,6 +550,55 @@
             </div>
         </div>
 
+        <!-- MER & CÔTE -->
+        <div class="section-title"><span class="icon">🌊</span> Mer &amp; Côte</div>
+        <div class="card" style="margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="font-size:0.85rem;font-weight:700;color:#666;">📍 Lieu côtier :</span>
+                <input type="text" id="coast-input" placeholder="Ex: Biarritz, Quiberon, Nice..." 
+                    style="width:220px;background:rgba(0,119,182,0.07);color:#1a2a3a;border:1px solid #b3d9f0;"
+                    onkeydown="if(event.key==='Enter') searchCoast()">
+                <button class="btn btn-search" onclick="searchCoast()" style="padding:8px 14px;font-size:0.85rem;">🔍</button>
+                <span id="coast-name" style="font-size:0.82rem;color:#0077b6;font-weight:600;"></span>
+            </div>
+        </div>
+        <div class="cards-grid" id="sea-cards">
+            <div class="card sea-card">
+                <h3>🌡️ Temp. eau</h3>
+                <div class="card-value" id="sea-temp">--</div>
+                <div class="card-unit">°C</div>
+                <div class="card-label" id="sea-temp-label">Recherchez un lieu</div>
+            </div>
+            <div class="card sea-card">
+                <h3>🌊 Vagues</h3>
+                <div class="card-value" id="wave-height">--</div>
+                <div class="card-unit">m</div>
+                <div class="card-label" id="wave-label">--</div>
+            </div>
+            <div class="card sea-card">
+                <h3>⏱️ Période</h3>
+                <div class="card-value" id="wave-period">--</div>
+                <div class="card-unit">secondes</div>
+                <div class="card-label" id="wave-period-label">--</div>
+            </div>
+            <div class="card sea-card">
+                <h3>💨 Vent mer</h3>
+                <div class="card-value" id="sea-wind">--</div>
+                <div class="card-unit">km/h</div>
+                <div class="card-label" id="sea-wind-label">--</div>
+            </div>
+            <div class="card swim-card">
+                <h3 style="font-size:0.85rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">🏊 Qualité baignade</h3>
+                <div class="swim-score">
+                    <div class="swim-emoji" id="swim-emoji">🔍</div>
+                    <div>
+                        <div class="swim-label" id="swim-label">Recherchez un lieu côtier</div>
+                        <div class="swim-details" id="swim-details"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- PRÉVISIONS HORAIRES -->
         <div class="section-title"><span class="icon">🕐</span> Prévisions sur 72 Heures</div>
         <div class="hourly-scroll" id="hourly-container"></div>
@@ -645,11 +655,18 @@
                 currentLon = prefs.lon;
                 currentCityName = prefs.cityName;
                 if (prefs.tidePort) document.getElementById('tide-port').value = prefs.tidePort;
+                if (prefs.coastLat && prefs.coastLon && prefs.coastName) {
+                    coastLat = prefs.coastLat;
+                    coastLon = prefs.coastLon;
+                    document.getElementById('coast-name').textContent = '📍 ' + prefs.coastName;
+                    document.getElementById('coast-input').value = prefs.coastName;
+                }
                 document.getElementById('saved-city-badge').style.display = 'block';
                 await fetchInseeCode(currentCityName, currentLat, currentLon);
             }
             fetchWeather(currentLat, currentLon, currentCityName);
             fetchTides();
+            if (coastLat && coastLon) fetchMarineData(coastLat, coastLon);
         };
 
         function getLocation() {
@@ -717,24 +734,17 @@
                 + `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,uv_index_max`
                 + `&current_weather=true&timezone=auto&forecast_days=16`;
 
-            // Open-Meteo Marine
-            const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}`
-                + `&hourly=wave_height,wave_period,wind_wave_height,sea_surface_temperature`
-                + `&current_weather=false&timezone=auto&forecast_days=1`;
-
             // Open-Meteo Air Quality
             const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}`
                 + `&hourly=european_aqi&timezone=auto&forecast_days=1`;
 
             try {
-                const [res, marineRes, aqiRes] = await Promise.all([
+                const [res, aqiRes] = await Promise.all([
                     fetch(apiUrl),
-                    fetch(marineUrl).catch(() => null),
                     fetch(aqiUrl).catch(() => null)
                 ]);
 
                 const data = await res.json();
-                const marineData = marineRes ? await marineRes.json().catch(() => null) : null;
                 const aqiData = aqiRes ? await aqiRes.json().catch(() => null) : null;
 
                 // Heure courante
@@ -755,8 +765,7 @@
 
                 renderMeteoDetails(uv, humidity, feelsLike, pressure, visibility);
                 renderAQI(aqiData, idx);
-                renderMarineData(marineData, lat, lon);
-                checkAlerts(wind, uv, marineData, idx);
+                checkAlerts(wind, uv, null, idx);
                 renderHourly(data.hourly);
                 renderDaily(data.daily, meteoConcept);
                 renderSunTimes(data.daily);
@@ -813,8 +822,49 @@
             badge.className = `aqi-badge aqi-${level}`;
         }
 
-        // ─── DONNÉES MARINES ─────────────────────────────────────────────────
-        function renderMarineData(marineData, lat, lon) {
+        // ─── RECHERCHE LIEU CÔTIER ────────────────────────────────────────────
+        let coastLat = null, coastLon = null;
+
+        async function searchCoast() {
+            const query = document.getElementById('coast-input').value.trim();
+            if (!query) return;
+            document.getElementById('coast-name').textContent = '⏳ Recherche...';
+            try {
+                const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=fr&format=json`);
+                const data = await res.json();
+                // Prendre le premier résultat côtier (près de la mer si possible)
+                const result = data.results?.[0];
+                if (!result) { document.getElementById('coast-name').textContent = '❌ Lieu non trouvé'; return; }
+                coastLat = result.latitude;
+                coastLon = result.longitude;
+                const name = result.name + (result.admin1 ? ', ' + result.admin1 : '');
+                document.getElementById('coast-name').textContent = '📍 ' + name;
+                // Sauvegarder
+                try {
+                    const prefs = loadPrefs() || {};
+                    prefs.coastLat = coastLat; prefs.coastLon = coastLon; prefs.coastName = name;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+                } catch(e) {}
+                fetchMarineData(coastLat, coastLon);
+            } catch { document.getElementById('coast-name').textContent = '❌ Erreur'; }
+        }
+
+        async function fetchMarineData(lat, lon) {
+            document.getElementById('swim-label').textContent = '⏳ Chargement...';
+            document.getElementById('swim-emoji').textContent = '⏳';
+            try {
+                const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}`
+                    + `&hourly=wave_height,wave_period,wind_wave_height,sea_surface_temperature&timezone=auto&forecast_days=1`;
+                const marineRes = await fetch(marineUrl);
+                const marineData = await marineRes.json();
+                renderMarineData(marineData);
+            } catch {
+                document.getElementById('swim-label').textContent = 'Données non disponibles';
+                document.getElementById('swim-emoji').textContent = '❓';
+            }
+        }
+
+        function renderMarineData(marineData) {
             if (!marineData?.hourly) {
                 document.getElementById('sea-temp').textContent = '--';
                 document.getElementById('wave-height').textContent = '--';
@@ -850,9 +900,12 @@
                 document.getElementById('wave-period-label').textContent = wavePer < 6 ? 'Petites vagues' : wavePer < 10 ? 'Houle modérée' : 'Longue houle';
             }
 
-            // Vent sur mer (on prend windspeed_10m de l'API principale s'il est déjà rendu)
-            document.getElementById('sea-wind').textContent = '--';
-            document.getElementById('sea-wind-label').textContent = '';
+            // Vent mer estimé à partir de wind_wave_height
+            if (windWave != null) {
+                const windEst = Math.round(windWave * 12);
+                document.getElementById('sea-wind').textContent = windEst;
+                document.getElementById('sea-wind-label').textContent = windEst < 15 ? '🍃 Calme' : windEst < 30 ? '💨 Brise' : windEst < 50 ? '🌬️ Vent modéré' : '🌪️ Vent fort';
+            }
 
             // Score baignade
             renderSwimScore(seaTemp, waveH, windWave);
