@@ -1,5 +1,5 @@
 {
-  "name": "Météo Expert",
+  "name": "Météo Expert-v2",
   "short_name": "Météo ARL",
   "description": "Prévisions météo sur 15 jours et 72h",
   "start_url": "./index.html",
