@@ -443,52 +443,18 @@
     <div class="container">
         <div class="loading" id="loading">⏳ Chargement des données météo...</div>
 
+        <!-- PRÉVISIONS HORAIRES -->
+        <div class="section-title"><span class="icon">🕐</span> Prévisions sur 72 Heures</div>
+        <div class="hourly-scroll" id="hourly-container"></div>
+
+        <!-- PRÉVISIONS 15 JOURS -->
+        <div class="section-title"><span class="icon">📅</span> Prévisions sur 15 Jours</div>
+        <div class="daily-grid" id="daily-container"></div>
+
         <!-- CARTE WINDY -->
         <div class="section-title"><span class="icon">🗺️</span> Carte interactive <small style="font-size:0.7em;font-weight:400;color:#888;margin-left:6px;">(vent, température, précipitations)</small></div>
         <div class="map-container">
             <iframe id="windy-map" width="100%" height="420" frameborder="0" src=""></iframe>
-        </div>
-
-        <!-- DONNÉES MÉTÉO -->
-        <div class="section-title"><span class="icon">📊</span> Données Météo Détaillées</div>
-        <div class="cards-grid">
-            <div class="card">
-                <h3>☀️ Indice UV</h3>
-                <div class="card-value" id="uv-value">--</div>
-                <div class="card-unit">/ 11+</div>
-                <div class="uv-bar"><div class="uv-marker" id="uv-marker" style="left:0%"></div></div>
-                <div class="card-label" id="uv-label">--</div>
-            </div>
-            <div class="card">
-                <h3>💧 Humidité</h3>
-                <div class="card-value" id="humidity-value">--</div>
-                <div class="card-unit">%</div>
-                <div class="card-label" id="humidity-label">--</div>
-            </div>
-            <div class="card">
-                <h3>🌡️ Ressenti</h3>
-                <div class="card-value" id="feels-like">--</div>
-                <div class="card-unit">°C</div>
-                <div class="card-label">Température ressentie</div>
-            </div>
-            <div class="card">
-                <h3>🌬️ Pression</h3>
-                <div class="card-value" id="pressure-value">--</div>
-                <div class="card-unit">hPa</div>
-                <div class="card-label" id="pressure-label">--</div>
-            </div>
-            <div class="card">
-                <h3>🌫️ Qualité air</h3>
-                <div class="card-value" id="aqi-value">--</div>
-                <div class="card-unit">IQA</div>
-                <div id="aqi-badge" class="aqi-badge">--</div>
-            </div>
-            <div class="card">
-                <h3>👁️ Visibilité</h3>
-                <div class="card-value" id="visibility-value">--</div>
-                <div class="card-unit">km</div>
-                <div class="card-label" id="visibility-label">--</div>
-            </div>
         </div>
 
         <!-- GRAPHIQUE TEMPÉRATURE -->
@@ -599,13 +565,6 @@
             </div>
         </div>
 
-        <!-- PRÉVISIONS HORAIRES -->
-        <div class="section-title"><span class="icon">🕐</span> Prévisions sur 72 Heures</div>
-        <div class="hourly-scroll" id="hourly-container"></div>
-
-        <!-- PRÉVISIONS 15 JOURS -->
-        <div class="section-title"><span class="icon">📅</span> Prévisions sur 15 Jours</div>
-        <div class="daily-grid" id="daily-container"></div>
     </div>
 
     <footer>Données : Open-Meteo · Open-Meteo Marine · Open-Meteo Air Quality · Meteo-Concept · Windy · Marées calculées localement</footer>
