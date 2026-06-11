@@ -715,15 +715,9 @@
                 const idx = currentHourIdx >= 0 ? currentHourIdx : 0;
 
                 // Données horaires actuelles
-                const uv       = data.hourly.uv_index?.[idx] ?? null;
-                const humidity = data.hourly.relativehumidity_2m?.[idx] ?? null;
-                const feelsLike= data.hourly.apparent_temperature?.[idx] ?? null;
-                const pressure = data.hourly.surface_pressure?.[idx] ?? null;
-                const visibility= data.hourly.visibility?.[idx] ?? null;
                 const wind     = data.hourly.windspeed_10m?.[idx] ?? null;
+                const uv       = data.hourly.uv_index?.[idx] ?? null;
 
-                renderMeteoDetails(uv, humidity, feelsLike, pressure, visibility);
-                renderAQI(aqiData, idx);
                 checkAlerts(wind, uv, null, idx);
                 renderHourly(data.hourly);
                 renderDaily(data.daily, meteoConcept);
