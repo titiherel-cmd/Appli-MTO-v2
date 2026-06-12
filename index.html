@@ -675,6 +675,21 @@
             } catch { currentInseeCode = null; }
         }
 
+        // ─── CONVERSION ECMWF → WEATHER CODE ────────────────────────────────
+        function ecmwfToWeatherCode(precip, snow, cloud) {
+            precip = precip ?? 0;
+            snow   = snow   ?? 0;
+            cloud  = cloud  ?? 0;
+            if (snow > 0.1)   return 71;  // ❄️ Neige
+            if (precip > 5)   return 65;  // 🌧️ Pluie forte
+            if (precip > 1)   return 61;  // 🌧️ Pluie modérée
+            if (precip > 0.1) return 51;  // 🌦️ Bruine / pluie légère
+            if (cloud > 75)   return 3;   // ☁️ Couvert
+            if (cloud > 40)   return 2;   // ⛅ Nuageux
+            if (cloud > 15)   return 1;   // 🌤️ Peu nuageux
+            return 0;                     // ☀️ Dégagé
+        }
+
         async function fetchWeather(lat, lon, cityName) {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('current-city').innerText = cityName;
@@ -687,44 +702,125 @@
             let meteoConcept = null;
             if (currentInseeCode) meteoConcept = await fetchMeteoConcept(currentInseeCode);
 
-            // Open-Meteo principal
-            const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
-                + `&hourly=temperature_2m,weathercode,precipitation_probability,windspeed_10m,relativehumidity_2m,apparent_temperature,visibility,uv_index,surface_pressure`
-                + `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,uv_index_max`
-                + `&current_weather=true&timezone=auto&forecast_days=16`;
+            // ── ECMWF : 72h horaires + 10 jours quotidiens ──────────────────
+            const ecmwfHourlyUrl = `https://api.open-meteo.com/v1/ecmwf?latitude=${lat}&longitude=${lon}`
+                + `&hourly=temperature_2m,precipitation,snowfall,cloudcover,windspeed_10m,relativehumidity_2m,apparent_temperature,surface_pressure`
+                + `&timezone=auto&forecast_days=10`;
 
-            // Open-Meteo Air Quality
+            const ecmwfDailyUrl = `https://api.open-meteo.com/v1/ecmwf?latitude=${lat}&longitude=${lon}`
+                + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset`
+                + `&timezone=auto&forecast_days=10`;
+
+            // ── Open-Meteo forecast : J11-J15 + UV + précip proba + AQI ─────
+            const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+                + `&hourly=uv_index,precipitation_probability,visibility`
+                + `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,uv_index_max`
+                + `&timezone=auto&forecast_days=16`;
+
             const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}`
                 + `&hourly=european_aqi&timezone=auto&forecast_days=1`;
 
             try {
-                const [res, aqiRes] = await Promise.all([
-                    fetch(apiUrl),
+                const [ecmwfHourlyRes, ecmwfDailyRes, forecastRes, aqiRes] = await Promise.all([
+                    fetch(ecmwfHourlyUrl),
+                    fetch(ecmwfDailyUrl),
+                    fetch(forecastUrl),
                     fetch(aqiUrl).catch(() => null)
                 ]);
 
-                const data = await res.json();
-                const aqiData = aqiRes ? await aqiRes.json().catch(() => null) : null;
+                const ecmwfH   = await ecmwfHourlyRes.json();
+                const ecmwfD   = await ecmwfDailyRes.json();
+                const forecast = await forecastRes.json();
+                const aqiData  = aqiRes ? await aqiRes.json().catch(() => null) : null;
 
-                // Heure courante
+                // ── Construire hourly unifié (ECMWF + enrichissement forecast) ──
+                // Ajouter weather_code synthétisé + champs manquants depuis forecast
+                const precipProbaMap = {};
+                const uvMap = {};
+                const visibilityMap = {};
+                if (forecast?.hourly) {
+                    forecast.hourly.time.forEach((t, i) => {
+                        precipProbaMap[t] = forecast.hourly.precipitation_probability?.[i] ?? null;
+                        uvMap[t]          = forecast.hourly.uv_index?.[i] ?? null;
+                        visibilityMap[t]  = forecast.hourly.visibility?.[i] ?? null;
+                    });
+                }
+
+                const mergedHourly = {
+                    time: ecmwfH.hourly.time,
+                    temperature_2m:        ecmwfH.hourly.temperature_2m,
+                    windspeed_10m:         ecmwfH.hourly.windspeed_10m,
+                    relativehumidity_2m:   ecmwfH.hourly.relativehumidity_2m,
+                    apparent_temperature:  ecmwfH.hourly.apparent_temperature,
+                    surface_pressure:      ecmwfH.hourly.surface_pressure,
+                    weathercode: ecmwfH.hourly.time.map((t, i) =>
+                        ecmwfToWeatherCode(
+                            ecmwfH.hourly.precipitation?.[i],
+                            ecmwfH.hourly.snowfall?.[i],
+                            ecmwfH.hourly.cloudcover?.[i]
+                        )
+                    ),
+                    precipitation_probability: ecmwfH.hourly.time.map(t => precipProbaMap[t] ?? null),
+                    uv_index:    ecmwfH.hourly.time.map(t => uvMap[t] ?? null),
+                    visibility:  ecmwfH.hourly.time.map(t => visibilityMap[t] ?? null),
+                };
+
+                // ── Construire daily unifié ───────────────────────────────────
+                // J0-J9 : ECMWF, J10-J15 : forecast uniquement
+                const ecmwfDays  = ecmwfD.daily.time;
+                const forecastDays = forecast.daily.time;
+
+                // Jours J10+ présents dans forecast mais pas dans ECMWF
+                const extraDays = forecastDays.filter(d => !ecmwfDays.includes(d));
+
+                const mergedDaily = {
+                    time:                [...ecmwfDays, ...extraDays],
+                    temperature_2m_max:  [...ecmwfD.daily.temperature_2m_max,
+                                          ...extraDays.map(d => forecast.daily.temperature_2m_max[forecastDays.indexOf(d)])],
+                    temperature_2m_min:  [...ecmwfD.daily.temperature_2m_min,
+                                          ...extraDays.map(d => forecast.daily.temperature_2m_min[forecastDays.indexOf(d)])],
+                    precipitation_sum:   [...ecmwfD.daily.precipitation_sum,
+                                          ...extraDays.map(d => forecast.daily.precipitation_sum[forecastDays.indexOf(d)])],
+                    sunrise:             [...ecmwfD.daily.sunrise,
+                                          ...extraDays.map(d => forecast.daily.sunrise[forecastDays.indexOf(d)])],
+                    sunset:              [...ecmwfD.daily.sunset,
+                                          ...extraDays.map(d => forecast.daily.sunset[forecastDays.indexOf(d)])],
+                    // weathercode : ECMWF synthétisé pour J0-J9, natif forecast pour J10+
+                    weathercode: [
+                        ...ecmwfDays.map((d, i) => ecmwfToWeatherCode(
+                            ecmwfD.daily.precipitation_sum?.[i],
+                            null,
+                            null  // pas de cloudcover en daily ECMWF — on utilise précip seule
+                        )),
+                        ...extraDays.map(d => forecast.daily.weathercode[forecastDays.indexOf(d)])
+                    ],
+                    uv_index_max: forecastDays.map(d => {
+                        const fi = forecastDays.indexOf(d);
+                        return forecast.daily.uv_index_max?.[fi] ?? null;
+                    }),
+                };
+
+                // ── Heure courante ────────────────────────────────────────────
                 const now = new Date();
-                const currentHourIdx = data.hourly.time.findIndex(t => {
+                const currentHourIdx = mergedHourly.time.findIndex(t => {
                     const d = new Date(t);
                     return d.getHours() === now.getHours() && d.toDateString() === now.toDateString();
                 });
                 const idx = currentHourIdx >= 0 ? currentHourIdx : 0;
 
-                // Données horaires actuelles
-                const wind     = data.hourly.windspeed_10m?.[idx] ?? null;
-                const uv       = data.hourly.uv_index?.[idx] ?? null;
+                const wind = mergedHourly.windspeed_10m?.[idx] ?? null;
+                const uv   = mergedHourly.uv_index?.[idx] ?? null;
 
                 checkAlerts(wind, uv, null, idx);
-                renderHourly(data.hourly);
-                renderDaily(data.daily, meteoConcept);
-                renderSunTimes(data.daily);
-                renderTempChart(data.hourly, now);
+                renderHourly(mergedHourly);
+                renderDaily(mergedDaily, meteoConcept);
+                renderSunTimes(mergedDaily);
+                renderTempChart(mergedHourly, now);
 
-            } catch(e) { alert("Erreur lors du chargement des prévisions."); }
+            } catch(e) {
+                console.error(e);
+                alert("Erreur lors du chargement des prévisions.");
+            }
             finally { document.getElementById('loading').style.display = 'none'; }
         }
 
