@@ -212,6 +212,32 @@
         .sea-card h3 { color: var(--sea); }
         .sea-card .card-value { color: var(--sea); }
 
+        /* ── POLLUTION EAU ── */
+        .pollution-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin: 6px 0 4px;
+        }
+        .poll-ok       { background: #e8f5e9; color: #2e7d32; }
+        .poll-warn     { background: #fff8e1; color: #f57f17; }
+        .poll-bad      { background: #fbe9e7; color: #bf360c; }
+        .poll-unknown  { background: #f0f0f0; color: #777; }
+        .pollution-station {
+            font-size: 0.78rem;
+            color: #888;
+            margin-top: 4px;
+        }
+        .pollution-date {
+            font-size: 0.72rem;
+            color: #bbb;
+            margin-top: 2px;
+        }
+
         /* ── BAIGNADE ── */
         .swim-card {
             grid-column: span 2;
@@ -553,6 +579,12 @@
                 <div class="card-unit">km/h</div>
                 <div class="card-label" id="sea-wind-label">--</div>
             </div>
+            <div class="card sea-card" style="grid-column: span 2;">
+                <h3>🧫 Pollution de l'eau (IFREMER)</h3>
+                <div id="pollution-content">
+                    <div class="card-label" id="pollution-status">Recherchez un lieu côtier</div>
+                </div>
+            </div>
             <div class="card swim-card">
                 <h3 style="font-size:0.85rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">🏊 Qualité baignade</h3>
                 <div class="swim-score">
@@ -567,7 +599,7 @@
 
     </div>
 
-    <footer>Données : Open-Meteo · Open-Meteo Marine · Open-Meteo Air Quality · Meteo-Concept · Windy · Marées calculées localement</footer>
+    <footer>Données : Open-Meteo · Open-Meteo Marine · Open-Meteo Air Quality · Meteo-Concept · Windy · Hub'Eau / IFREMER QUADRIGE · Marées calculées localement</footer>
 
     <script>
         const METEO_CONCEPT_TOKEN = '7b9e9fdc7aafcdb851dcd13d8ece7fbcce4d8baef42ca516e261b1c0f327eb7a';
@@ -901,6 +933,8 @@
         async function fetchMarineData(lat, lon) {
             document.getElementById('swim-label').textContent = '⏳ Chargement...';
             document.getElementById('swim-emoji').textContent = '⏳';
+            document.getElementById('pollution-content').innerHTML =
+                '<div class="card-label">⏳ Recherche des données de pollution...</div>';
             try {
                 const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}`
                     + `&hourly=wave_height,wave_period,wind_wave_height,sea_surface_temperature&timezone=auto&forecast_days=1`;
@@ -911,6 +945,8 @@
                 document.getElementById('swim-label').textContent = 'Données non disponibles';
                 document.getElementById('swim-emoji').textContent = '❓';
             }
+            // Données pollution indépendantes (Hub'Eau / IFREMER QUADRIGE)
+            fetchPollutionData(lat, lon);
         }
 
         function renderMarineData(marineData) {
@@ -921,6 +957,8 @@
                 document.getElementById('sea-wind').textContent = '--';
                 document.getElementById('swim-label').textContent = 'Données marines non disponibles pour ce lieu';
                 document.getElementById('swim-emoji').textContent = '❓';
+                document.getElementById('pollution-content').innerHTML =
+                    '<div class="card-label">Données non disponibles</div>';
                 return;
             }
 
@@ -987,6 +1025,93 @@
             document.getElementById('swim-emoji').textContent = emoji;
             document.getElementById('swim-label').textContent = label + ` (${score}/100)`;
             document.getElementById('swim-details').textContent = reasons.length > 0 ? '⚠️ ' + reasons.join(', ') : '✅ Conditions idéales';
+        }
+
+        // ─── POLLUTION DE L'EAU (Hub'Eau / QUADRIGE IFREMER) ─────────────────
+        async function fetchPollutionData(lat, lon) {
+            const content = document.getElementById('pollution-content');
+            const status  = document.getElementById('pollution-status');
+            content.innerHTML = '<div class="card-label" id="pollution-status">⏳ Recherche des données de pollution...</div>';
+
+            try {
+                // 1. Trouver les stations de surveillance littorale les plus proches (rayon 50 km)
+                const stationsUrl = `https://hubeau.eaufrance.fr/api/v1/surveillance_littoral/lieux_surv`
+                    + `?longitude=${lon}&latitude=${lat}&distance=50&size=5&format=json`
+                    + `&fields=code_lieusurv,libelle_lieusurv,longitude,latitude,date_fin_donnees`;
+                const stRes = await fetch(stationsUrl);
+                const stData = await stRes.json();
+
+                if (!stData?.data?.length) {
+                    content.innerHTML = `<div class="card-label">Aucune station de surveillance trouvée dans un rayon de 50 km.<br>
+                        <span style="font-size:0.75rem;color:#bbb;">Source : Hub'Eau / IFREMER QUADRIGE</span></div>`;
+                    return;
+                }
+
+                // 2. Prendre la station la plus proche avec données récentes
+                const station = stData.data[0];
+                const code = station.code_lieusurv;
+                const nom  = station.libelle_lieusurv;
+
+                // 3. Récupérer les dernières mesures (contaminants chimiques)
+                const measUrl = `https://hubeau.eaufrance.fr/api/v1/surveillance_littoral/contaminants_chimiques`
+                    + `?code_lieusurv=${code}&size=10&sort=desc&format=json`
+                    + `&fields=code_lieusurv,libelle_lieusurv,date_prelevement,libelle_parametre,resultat,code_remarque`;
+                const measRes = await fetch(measUrl);
+                const measData = await measRes.json();
+
+                renderPollutionData(nom, code, measData?.data || [], lon, lat, station);
+
+            } catch(e) {
+                document.getElementById('pollution-content').innerHTML =
+                    `<div class="card-label">Données de pollution non disponibles.<br>
+                    <a href="https://baignades.sante.gouv.fr" target="_blank" style="color:#0077b6;font-size:0.78rem;">Consulter baignades.sante.gouv.fr ↗</a></div>`;
+            }
+        }
+
+        function renderPollutionData(stationName, stationCode, measures, lon, lat, stationObj) {
+            const content = document.getElementById('pollution-content');
+
+            // Distance approximative
+            const dLat = (lat - (stationObj.latitude || lat)) * 111;
+            const dLon = (lon - (stationObj.longitude || lon)) * 111 * Math.cos(lat * Math.PI / 180);
+            const dist = Math.round(Math.sqrt(dLat*dLat + dLon*dLon));
+
+            if (!measures.length) {
+                // Pas de données de contaminants : station trouvée mais pas de mesures récentes
+                content.innerHTML = `
+                    <span class="pollution-badge poll-unknown">❓ Données indisponibles</span>
+                    <div class="pollution-station">📍 Station la plus proche : ${stationName} (≈${dist} km)</div>
+                    <div class="pollution-date">Aucune mesure récente dans la base QUADRIGE</div>
+                    <div style="margin-top:8px;font-size:0.75rem;">
+                        <a href="https://baignades.sante.gouv.fr" target="_blank" style="color:#0077b6;">Voir baignades.sante.gouv.fr ↗</a>
+                    </div>`;
+                return;
+            }
+
+            // Analyser les mesures : chercher des dépassements (code_remarque=1 = mesure normale, autre = problème potentiel)
+            const lastDate = measures[0].date_prelevement?.split('T')[0] || '?';
+            const params   = [...new Set(measures.map(m => m.libelle_parametre).filter(Boolean))].slice(0, 3);
+            const hasIssue = measures.some(m => m.code_remarque && m.code_remarque !== '1' && m.code_remarque !== 1);
+
+            let badgeCls, badgeLabel, badgeEmoji;
+            if (hasIssue) {
+                badgeCls = 'poll-warn'; badgeLabel = 'Anomalie détectée'; badgeEmoji = '⚠️';
+            } else {
+                badgeCls = 'poll-ok';   badgeLabel = 'Qualité conforme';  badgeEmoji = '✅';
+            }
+
+            const paramsStr = params.length ? `Paramètres : ${params.join(', ')}` : '';
+            const dateLabel = lastDate !== '?' ? `Dernière analyse : ${new Date(lastDate).toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'})}` : '';
+
+            content.innerHTML = `
+                <span class="pollution-badge ${badgeCls}">${badgeEmoji} ${badgeLabel}</span>
+                <div class="pollution-station">📍 Station QUADRIGE : ${stationName}${dist > 0 ? ` (≈${dist} km)` : ''}</div>
+                ${paramsStr ? `<div class="pollution-date">${paramsStr}</div>` : ''}
+                ${dateLabel  ? `<div class="pollution-date">🗓️ ${dateLabel}</div>` : ''}
+                <div style="margin-top:8px;font-size:0.75rem;color:#aaa;">
+                    Source : Hub'Eau / IFREMER QUADRIGE · 
+                    <a href="https://baignades.sante.gouv.fr" target="_blank" style="color:#0077b6;">baignades.sante.gouv.fr ↗</a>
+                </div>`;
         }
 
         // ─── ALERTES ─────────────────────────────────────────────────────────
