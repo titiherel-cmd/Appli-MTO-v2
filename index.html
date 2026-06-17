@@ -740,11 +740,11 @@
                 + `&timezone=auto&forecast_days=10`;
 
             const ecmwfDailyUrl = `https://api.open-meteo.com/v1/ecmwf?latitude=${lat}&longitude=${lon}`
-                + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset`
+                + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset,cloudcover_mean`
                 + `&timezone=auto&forecast_days=10`;
 
             // ── Open-Meteo forecast : J11-J15 + UV + précip proba + AQI ─────
-            const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+            const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&models=best_match`
                 + `&hourly=uv_index,precipitation_probability,visibility`
                 + `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,uv_index_max`
                 + `&timezone=auto&forecast_days=16`;
@@ -822,7 +822,7 @@
                         ...ecmwfDays.map((d, i) => ecmwfToWeatherCode(
                             ecmwfD.daily.precipitation_sum?.[i],
                             null,
-                            null  // pas de cloudcover en daily ECMWF — on utilise précip seule
+                            ecmwfD.daily.cloudcover_mean?.[i]  // cloudcover réel au lieu de null
                         )),
                         ...extraDays.map(d => forecast.daily.weathercode[forecastDays.indexOf(d)])
                     ],
@@ -1348,6 +1348,21 @@
             }
         }
 
+        // ─── EMOJIS MÉTÉO-FRANCE (codes Meteo-Concept 0-9) ───────────────────
+        function getMFEmoji(code) {
+            if (code === 0)  return '☀️';
+            if (code === 1)  return '🌤️';
+            if (code === 2)  return '⛅';
+            if (code === 3)  return '☁️';
+            if (code === 4)  return '🌫️';
+            if (code === 5)  return '🌦️';
+            if (code === 6)  return '🌧️';
+            if (code === 7)  return '⛈️';
+            if (code === 8)  return '❄️';
+            if (code === 9)  return '🌨️';
+            return '☁️';
+        }
+
         // ─── PRÉVISIONS 15 JOURS ──────────────────────────────────────────────
         function renderDaily(dailyData, meteoConcept) {
             const container = document.getElementById('daily-container');
@@ -1363,17 +1378,26 @@
                 let code    = dailyData.weathercode[i];
                 let precip  = dailyData.precipitation_sum?.[i] != null ? Math.round(dailyData.precipitation_sum[i]*10)/10 : null;
                 let mcBadge = '';
+                let useMFEmoji = false;
                 if (meteoConcept && meteoConcept[i]) {
                     const mc = meteoConcept[i];
                     if (mc.tmax != null) tempMax = mc.tmax;
                     if (mc.tmin != null) tempMin = mc.tmin;
                     if (mc.rr10 != null) precip  = mc.rr10;
+                    if (mc.weather != null) { code = mc.weather; useMFEmoji = true; }
                     const pluie = mc.probarain != null ? mc.probarain : null;
                     if (pluie !== null) mcBadge = `<div style="font-size:0.7rem;color:#3498db;margin-top:4px;">💧${pluie}%</div>`;
                     mcBadge += `<div style="font-size:0.6rem;color:#aaa;margin-top:2px;">MF</div>`;
                 }
+                // Indicateur de fiabilité selon l'échéance
+                const reliability = i <= 3 ? { dot: '🟢', label: 'Fiable' }
+                                  : i <= 7 ? { dot: '🟡', label: 'Bonne' }
+                                  : i <= 10 ? { dot: '🟠', label: 'Indicative' }
+                                  : { dot: '🔴', label: 'Incertaine' };
+                const reliabilityBadge = `<div style="font-size:0.55rem;color:#aaa;margin-top:3px;" title="Fiabilité : ${reliability.label}">${reliability.dot} J+${i} · ${reliability.label}</div>`;
+
                 const dayName = dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'short' });
-                const emoji   = getWeatherEmoji(code);
+                const emoji   = useMFEmoji ? getMFEmoji(code) : getWeatherEmoji(code);
                 const card    = document.createElement('div');
                 card.className = 'daily-card' + (isToday ? ' is-today' : '');
                 card.innerHTML = `
@@ -1385,7 +1409,8 @@
                         <span class="temp-min">${tempMin}°</span>
                     </div>
                     ${precip != null ? `<div style="font-size:0.72rem;color:#7cb9e8;margin-top:4px;">🌧️ ${precip}mm</div>` : ''}
-                    ${mcBadge}`;
+                    ${mcBadge}
+                    ${reliabilityBadge}`;
                 container.appendChild(card);
             }
         }
