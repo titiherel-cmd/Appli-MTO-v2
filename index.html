@@ -734,16 +734,12 @@
             let meteoConcept = null;
             if (currentInseeCode) meteoConcept = await fetchMeteoConcept(currentInseeCode);
 
-            // ── ECMWF : 72h horaires + 10 jours quotidiens ──────────────────
+            // ── ECMWF horaires 10 jours (timezone=auto => heures locales) ──
             const ecmwfHourlyUrl = `https://api.open-meteo.com/v1/ecmwf?latitude=${lat}&longitude=${lon}`
                 + `&hourly=temperature_2m,precipitation,snowfall,cloudcover,windspeed_10m,relativehumidity_2m,apparent_temperature,surface_pressure`
                 + `&timezone=auto&forecast_days=10`;
 
-            const ecmwfDailyUrl = `https://api.open-meteo.com/v1/ecmwf?latitude=${lat}&longitude=${lon}`
-                + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset,cloudcover_mean`
-                + `&timezone=auto&forecast_days=10`;
-
-            // ── Open-Meteo forecast : J11-J15 + UV + précip proba + AQI ─────
+            // ── Open-Meteo forecast : sunrise/sunset + J11-J15 + UV + précip proba ──
             const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&models=best_match`
                 + `&hourly=uv_index,precipitation_probability,visibility`
                 + `&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,uv_index_max`
@@ -753,15 +749,13 @@
                 + `&hourly=european_aqi&timezone=auto&forecast_days=1`;
 
             try {
-                const [ecmwfHourlyRes, ecmwfDailyRes, forecastRes, aqiRes] = await Promise.all([
+                const [ecmwfHourlyRes, forecastRes, aqiRes] = await Promise.all([
                     fetch(ecmwfHourlyUrl),
-                    fetch(ecmwfDailyUrl),
                     fetch(forecastUrl),
                     fetch(aqiUrl).catch(() => null)
                 ]);
 
                 const ecmwfH   = await ecmwfHourlyRes.json();
-                const ecmwfD   = await ecmwfDailyRes.json();
                 const forecast = await forecastRes.json();
                 const aqiData  = aqiRes ? await aqiRes.json().catch(() => null) : null;
 
@@ -797,36 +791,64 @@
                     visibility:  ecmwfH.hourly.time.map(t => visibilityMap[t] ?? null),
                 };
 
-                // ── Construire daily unifié ───────────────────────────────────
-                // J0-J9 : ECMWF, J10-J15 : forecast uniquement
-                const ecmwfDays  = ecmwfD.daily.time;
-                const forecastDays = forecast.daily.time;
+                // ── Calculer tmax/tmin ECMWF par jour LOCAL (comme Windy) ────
+                // timezone=auto => les heures ECMWF sont déjà en heure locale
+                const ecmwfDailyLocal = {};
+                ecmwfH.hourly.time.forEach((t, i) => {
+                    const dateKey = t.split('T')[0];
+                    if (!ecmwfDailyLocal[dateKey]) ecmwfDailyLocal[dateKey] = { temps: [], precips: [], clouds: [], snow: [] };
+                    const d = ecmwfDailyLocal[dateKey];
+                    if (ecmwfH.hourly.temperature_2m?.[i] != null) d.temps.push(ecmwfH.hourly.temperature_2m[i]);
+                    if (ecmwfH.hourly.precipitation?.[i] != null)  d.precips.push(ecmwfH.hourly.precipitation[i]);
+                    if (ecmwfH.hourly.cloudcover?.[i] != null)     d.clouds.push(ecmwfH.hourly.cloudcover[i]);
+                    if (ecmwfH.hourly.snowfall?.[i] != null)       d.snow.push(ecmwfH.hourly.snowfall[i]);
+                });
+                const ecmwfDays = Object.keys(ecmwfDailyLocal).sort();
 
-                // Jours J10+ présents dans forecast mais pas dans ECMWF
+                // ── Construire daily unifié ───────────────────────────────────
+                // J0-J9 : ECMWF horaire local, J10-J15 : forecast uniquement
+                const forecastDays = forecast.daily.time;
                 const extraDays = forecastDays.filter(d => !ecmwfDays.includes(d));
 
                 const mergedDaily = {
-                    time:                [...ecmwfDays, ...extraDays],
-                    temperature_2m_max:  [...ecmwfD.daily.temperature_2m_max,
-                                          ...extraDays.map(d => forecast.daily.temperature_2m_max[forecastDays.indexOf(d)])],
-                    temperature_2m_min:  [...ecmwfD.daily.temperature_2m_min,
-                                          ...extraDays.map(d => forecast.daily.temperature_2m_min[forecastDays.indexOf(d)])],
-                    precipitation_sum:   [...ecmwfD.daily.precipitation_sum,
-                                          ...extraDays.map(d => forecast.daily.precipitation_sum[forecastDays.indexOf(d)])],
-                    sunrise:             [...ecmwfD.daily.sunrise,
-                                          ...extraDays.map(d => forecast.daily.sunrise[forecastDays.indexOf(d)])],
-                    sunset:              [...ecmwfD.daily.sunset,
-                                          ...extraDays.map(d => forecast.daily.sunset[forecastDays.indexOf(d)])],
-                    // weathercode : ECMWF synthétisé pour J0-J9, natif forecast pour J10+
+                    time: [...ecmwfDays, ...extraDays],
+                    // Températures ECMWF calculées depuis les heures locales (précis comme Windy)
+                    temperature_2m_max: [
+                        ...ecmwfDays.map(d => {
+                            const ts = ecmwfDailyLocal[d].temps;
+                            return ts.length ? Math.max(...ts) : null;
+                        }),
+                        ...extraDays.map(d => forecast.daily.temperature_2m_max[forecastDays.indexOf(d)])
+                    ],
+                    temperature_2m_min: [
+                        ...ecmwfDays.map(d => {
+                            const ts = ecmwfDailyLocal[d].temps;
+                            return ts.length ? Math.min(...ts) : null;
+                        }),
+                        ...extraDays.map(d => forecast.daily.temperature_2m_min[forecastDays.indexOf(d)])
+                    ],
+                    precipitation_sum: [
+                        ...ecmwfDays.map(d => {
+                            const ps = ecmwfDailyLocal[d].precips;
+                            return ps.length ? Math.round(ps.reduce((a,b)=>a+b,0) * 10) / 10 : null;
+                        }),
+                        ...extraDays.map(d => forecast.daily.precipitation_sum[forecastDays.indexOf(d)])
+                    ],
+                    // sunrise/sunset alignés sur time=[...ecmwfDays,...extraDays]
+                    sunrise: [...ecmwfDays, ...extraDays].map(d => forecast.daily.sunrise[forecastDays.indexOf(d)] ?? null),
+                    sunset:  [...ecmwfDays, ...extraDays].map(d => forecast.daily.sunset[forecastDays.indexOf(d)] ?? null),
+                    // weathercode : ECMWF synthétisé (cloudcover + précip moyens) pour J0-J9, natif forecast pour J10+
                     weathercode: [
-                        ...ecmwfDays.map((d, i) => ecmwfToWeatherCode(
-                            ecmwfD.daily.precipitation_sum?.[i],
-                            null,
-                            ecmwfD.daily.cloudcover_mean?.[i]  // cloudcover réel au lieu de null
-                        )),
+                        ...ecmwfDays.map(d => {
+                            const dd = ecmwfDailyLocal[d];
+                            const avgCloud  = dd.clouds.length  ? dd.clouds.reduce((a,b)=>a+b,0)/dd.clouds.length   : 0;
+                            const totalPrecip = dd.precips.reduce((a,b)=>a+b, 0);
+                            const totalSnow   = dd.snow.reduce((a,b)=>a+b, 0);
+                            return ecmwfToWeatherCode(totalPrecip, totalSnow, avgCloud);
+                        }),
                         ...extraDays.map(d => forecast.daily.weathercode[forecastDays.indexOf(d)])
                     ],
-                    uv_index_max: forecastDays.map(d => {
+                    uv_index_max: [...ecmwfDays, ...extraDays].map(d => {
                         const fi = forecastDays.indexOf(d);
                         return forecast.daily.uv_index_max?.[fi] ?? null;
                     }),
