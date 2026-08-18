@@ -382,6 +382,20 @@
         }
         .hourly-card.is-now .hour-label { color: #00a884; }
         .hourly-card.is-now .temp-label { color: #00a884; }
+        .hourly-card.is-night {
+            background: linear-gradient(160deg, #eef1fb, #ffffff);
+            position: relative;
+        }
+        .hourly-card.is-night.is-now {
+            background: linear-gradient(160deg, #d9e6ff, #f0fffc);
+        }
+        .hourly-card .moon-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
         .hourly-card.is-now::before {
             content: 'Maintenant';
             position: absolute;
@@ -418,6 +432,27 @@
         .daily-card .temps { margin-top: 10px; font-size: 1rem; }
         .daily-card .temp-max { color: #e74c3c; font-weight: 700; }
         .daily-card .temp-min { color: #3498db; font-weight: 600; }
+        .daily-card .am-pm-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 6px;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid #f0f0f0;
+        }
+        .daily-card .am-pm-col {
+            flex: 1;
+            text-align: center;
+        }
+        .daily-card .am-pm-label {
+            font-size: 0.58rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 2px;
+        }
+        .daily-card .am-pm-emoji { font-size: 1.15rem; }
+        .daily-card .am-pm-temp { font-size: 0.75rem; font-weight: 700; color: #666; }
         .daily-card.is-today {
             background: linear-gradient(145deg, #fffbe6, #fff8d6);
             border-color: var(--today-glow);
@@ -796,14 +831,37 @@
                 const ecmwfDailyLocal = {};
                 ecmwfH.hourly.time.forEach((t, i) => {
                     const dateKey = t.split('T')[0];
-                    if (!ecmwfDailyLocal[dateKey]) ecmwfDailyLocal[dateKey] = { temps: [], precips: [], clouds: [], snow: [] };
+                    const hour    = new Date(t).getHours();
+                    if (!ecmwfDailyLocal[dateKey]) ecmwfDailyLocal[dateKey] = {
+                        temps: [], precips: [], clouds: [], snow: [],
+                        amTemps: [], amPrecips: [], amClouds: [], amSnow: [],
+                        pmTemps: [], pmPrecips: [], pmClouds: [], pmSnow: []
+                    };
                     const d = ecmwfDailyLocal[dateKey];
                     if (ecmwfH.hourly.temperature_2m?.[i] != null) d.temps.push(ecmwfH.hourly.temperature_2m[i]);
                     if (ecmwfH.hourly.precipitation?.[i] != null)  d.precips.push(ecmwfH.hourly.precipitation[i]);
                     if (ecmwfH.hourly.cloudcover?.[i] != null)     d.clouds.push(ecmwfH.hourly.cloudcover[i]);
                     if (ecmwfH.hourly.snowfall?.[i] != null)       d.snow.push(ecmwfH.hourly.snowfall[i]);
+                    // Matin : 6h-12h59, Après-midi : 13h-18h59
+                    const isMorning   = hour >= 6  && hour < 13;
+                    const isAfternoon = hour >= 13 && hour < 19;
+                    if (isMorning) {
+                        if (ecmwfH.hourly.temperature_2m?.[i] != null) d.amTemps.push(ecmwfH.hourly.temperature_2m[i]);
+                        if (ecmwfH.hourly.precipitation?.[i] != null)  d.amPrecips.push(ecmwfH.hourly.precipitation[i]);
+                        if (ecmwfH.hourly.cloudcover?.[i] != null)     d.amClouds.push(ecmwfH.hourly.cloudcover[i]);
+                        if (ecmwfH.hourly.snowfall?.[i] != null)       d.amSnow.push(ecmwfH.hourly.snowfall[i]);
+                    } else if (isAfternoon) {
+                        if (ecmwfH.hourly.temperature_2m?.[i] != null) d.pmTemps.push(ecmwfH.hourly.temperature_2m[i]);
+                        if (ecmwfH.hourly.precipitation?.[i] != null)  d.pmPrecips.push(ecmwfH.hourly.precipitation[i]);
+                        if (ecmwfH.hourly.cloudcover?.[i] != null)     d.pmClouds.push(ecmwfH.hourly.cloudcover[i]);
+                        if (ecmwfH.hourly.snowfall?.[i] != null)       d.pmSnow.push(ecmwfH.hourly.snowfall[i]);
+                    }
                 });
                 const ecmwfDays = Object.keys(ecmwfDailyLocal).sort();
+
+                // Moyenne d'un tableau, ou null si vide
+                const avgOrNull = arr => arr.length ? arr.reduce((a,b)=>a+b,0) / arr.length : null;
+                const sumOrNull = arr => arr.length ? arr.reduce((a,b)=>a+b,0) : null;
 
                 // ── Construire daily unifié ───────────────────────────────────
                 // J0-J9 : ECMWF horaire local, J10-J15 : forecast uniquement
@@ -852,6 +910,25 @@
                         const fi = forecastDays.indexOf(d);
                         return forecast.daily.uv_index_max?.[fi] ?? null;
                     }),
+                    // Matin/après-midi : uniquement dispo pour les jours avec données horaires ECMWF (J0-J9)
+                    morning: [...ecmwfDays, ...extraDays].map(d => {
+                        if (!ecmwfDailyLocal[d]) return null;
+                        const dd = ecmwfDailyLocal[d];
+                        const temp = avgOrNull(dd.amTemps);
+                        if (temp == null) return null;
+                        const avgCloud = avgOrNull(dd.amClouds) ?? 0;
+                        const code = ecmwfToWeatherCode(sumOrNull(dd.amPrecips) ?? 0, sumOrNull(dd.amSnow) ?? 0, avgCloud);
+                        return { temp: Math.round(temp), code };
+                    }),
+                    afternoon: [...ecmwfDays, ...extraDays].map(d => {
+                        if (!ecmwfDailyLocal[d]) return null;
+                        const dd = ecmwfDailyLocal[d];
+                        const temp = avgOrNull(dd.pmTemps);
+                        if (temp == null) return null;
+                        const avgCloud = avgOrNull(dd.pmClouds) ?? 0;
+                        const code = ecmwfToWeatherCode(sumOrNull(dd.pmPrecips) ?? 0, sumOrNull(dd.pmSnow) ?? 0, avgCloud);
+                        return { temp: Math.round(temp), code };
+                    }),
                 };
 
                 // ── Heure courante ────────────────────────────────────────────
@@ -866,7 +943,7 @@
                 const uv   = mergedHourly.uv_index?.[idx] ?? null;
 
                 checkAlerts(wind, uv, null, idx);
-                renderHourly(mergedHourly);
+                renderHourly(mergedHourly, mergedDaily);
                 renderDaily(mergedDaily, meteoConcept);
                 renderSunTimes(mergedDaily);
                 renderTempChart(mergedHourly, now);
@@ -1333,7 +1410,24 @@
         }
 
         // ─── PRÉVISIONS HORAIRES 72H ──────────────────────────────────────────
-        function renderHourly(hourlyData) {
+        // Détermine si une heure donnée tombe de nuit, en comparant à l'heure
+        // de lever/coucher du soleil du jour correspondant (dailyData.sunrise/sunset).
+        function isNightAt(dateObj, dailyData) {
+            if (!dailyData?.time || !dailyData?.sunrise || !dailyData?.sunset) return false;
+            const dateStr = dateObj.getFullYear() + '-' +
+                String(dateObj.getMonth()+1).padStart(2,'0') + '-' +
+                String(dateObj.getDate()).padStart(2,'0');
+            const dayIdx = dailyData.time.indexOf(dateStr);
+            if (dayIdx === -1) return false;
+            const sunriseStr = dailyData.sunrise[dayIdx];
+            const sunsetStr  = dailyData.sunset[dayIdx];
+            if (!sunriseStr || !sunsetStr) return false;
+            const sunrise = new Date(sunriseStr);
+            const sunset  = new Date(sunsetStr);
+            return dateObj < sunrise || dateObj >= sunset;
+        }
+
+        function renderHourly(hourlyData, dailyData) {
             const container = document.getElementById('hourly-container');
             container.innerHTML = '';
             const now = new Date();
@@ -1353,9 +1447,11 @@
                 const day    = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' });
                 const emoji  = getWeatherEmoji(code);
                 const isNow  = timeStr === currentHour;
+                const night  = isNightAt(dateObj, dailyData);
                 const card   = document.createElement('div');
-                card.className = 'hourly-card' + (isNow ? ' is-now' : '');
+                card.className = 'hourly-card' + (isNow ? ' is-now' : '') + (night ? ' is-night' : '');
                 card.innerHTML = `
+                    ${night ? '<div class="moon-badge">🌙</div>' : ''}
                     <div class="day-label">${day}</div>
                     <div class="hour-label">${hour}</div>
                     <div class="weather-emoji">${emoji}</div>
@@ -1420,6 +1516,31 @@
 
                 const dayName = dateObj.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'short' });
                 const emoji   = useMFEmoji ? getMFEmoji(code) : getWeatherEmoji(code);
+
+                // Bloc Matin / Après-midi (dispo uniquement si données horaires ECMWF, J0-J9)
+                const morning   = dailyData.morning?.[i]   ?? null;
+                const afternoon = dailyData.afternoon?.[i] ?? null;
+                let amPmRow = '';
+                if (morning || afternoon) {
+                    const amEmoji = morning   ? getWeatherEmoji(morning.code)   : '–';
+                    const pmEmoji = afternoon ? getWeatherEmoji(afternoon.code) : '–';
+                    const amTemp  = morning   ? `${morning.temp}°`   : '–';
+                    const pmTemp  = afternoon ? `${afternoon.temp}°` : '–';
+                    amPmRow = `
+                    <div class="am-pm-row">
+                        <div class="am-pm-col">
+                            <div class="am-pm-label">🌅 Matin</div>
+                            <div class="am-pm-emoji">${amEmoji}</div>
+                            <div class="am-pm-temp">${amTemp}</div>
+                        </div>
+                        <div class="am-pm-col">
+                            <div class="am-pm-label">🌇 Aprem</div>
+                            <div class="am-pm-emoji">${pmEmoji}</div>
+                            <div class="am-pm-temp">${pmTemp}</div>
+                        </div>
+                    </div>`;
+                }
+
                 const card    = document.createElement('div');
                 card.className = 'daily-card' + (isToday ? ' is-today' : '');
                 card.innerHTML = `
@@ -1432,6 +1553,7 @@
                     </div>
                     ${precip != null ? `<div style="font-size:0.72rem;color:#7cb9e8;margin-top:4px;">🌧️ ${precip}mm</div>` : ''}
                     ${mcBadge}
+                    ${amPmRow}
                     ${reliabilityBadge}`;
                 container.appendChild(card);
             }
