@@ -389,13 +389,6 @@
         .hourly-card.is-night.is-now {
             background: linear-gradient(160deg, #d9e6ff, #f0fffc);
         }
-        .hourly-card .moon-badge {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            font-size: 0.75rem;
-            opacity: 0.8;
-        }
         .hourly-card.is-now::before {
             content: 'Maintenant';
             position: absolute;
@@ -1445,13 +1438,12 @@
                 const dateObj = new Date(timeStr);
                 const hour   = dateObj.getHours() + "h";
                 const day    = dateObj.toLocaleDateString('fr-FR', { weekday: 'short' });
-                const emoji  = getWeatherEmoji(code);
-                const isNow  = timeStr === currentHour;
                 const night  = isNightAt(dateObj, dailyData);
+                const emoji  = getWeatherEmoji(code, night);
+                const isNow  = timeStr === currentHour;
                 const card   = document.createElement('div');
                 card.className = 'hourly-card' + (isNow ? ' is-now' : '') + (night ? ' is-night' : '');
                 card.innerHTML = `
-                    ${night ? '<div class="moon-badge">🌙</div>' : ''}
                     <div class="day-label">${day}</div>
                     <div class="hour-label">${hour}</div>
                     <div class="weather-emoji">${emoji}</div>
@@ -1560,9 +1552,9 @@
         }
 
         // ─── EMOJIS MÉTÉO ─────────────────────────────────────────────────────
-        function getWeatherEmoji(code) {
-            if (code === 0) return '☀️';
-            if (code <= 3)  return '⛅';
+        function getWeatherEmoji(code, isNight) {
+            if (code === 0) return isNight ? '🌙' : '☀️';
+            if (code <= 3)  return isNight ? '☁️' : '⛅';
             if (code === 45 || code === 48) return '🌫️';
             if (code >= 51 && code <= 55) return '🌦️';
             if (code >= 61 && code <= 67) return '🌧️';
